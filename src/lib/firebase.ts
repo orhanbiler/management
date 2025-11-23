@@ -3,15 +3,15 @@ import { getFirestore, Firestore } from "firebase/firestore";
 import { getAuth, Auth } from "firebase/auth";
 import { getAnalytics, Analytics, isSupported } from "firebase/analytics";
 
-// Configuration with trimmed strings to prevent whitespace issues
+// Configuration from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyAOjGKgBg7zgsCXSjn6xfY-MysuADjoRZc",
-  authDomain: "management-86d22.firebaseapp.com",
-  projectId: "management-86d22",
-  storageBucket: "management-86d22.firebasestorage.app",
-  messagingSenderId: "128821899408",
-  appId: "1:128821899408:web:3ea753a6a6bd27f96c6815",
-  measurementId: "G-3HMD9BMN5Y"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || ""
 };
 
 let app: FirebaseApp;
