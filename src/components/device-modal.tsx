@@ -50,9 +50,10 @@ interface DeviceModalProps {
   onOpenChange: (open: boolean) => void
   device?: Device | null
   onSave: (data: DeviceFormData) => Promise<void>
+  existingDevices?: Device[] // For duplicate checking
 }
 
-export function DeviceModal({ open, onOpenChange, device, onSave }: DeviceModalProps) {
+export function DeviceModal({ open, onOpenChange, device, onSave, existingDevices = [] }: DeviceModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -113,12 +114,30 @@ export function DeviceModal({ open, onOpenChange, device, onSave }: DeviceModalP
     return isPidMismatch(serialNumber?.toUpperCase(), pidNumber?.toUpperCase())
   }, [serialNumber, pidNumber])
 
+  // Check for duplicate serial number
+  const isDuplicateSerial = useMemo(() => {
+    if (!serialNumber || device) return false // Skip check if editing existing device
+    const normalizedSerial = serialNumber.toUpperCase().trim()
+    return existingDevices.some(
+      d => d.serial_number.toUpperCase().trim() === normalizedSerial
+    )
+  }, [serialNumber, device, existingDevices])
+
   // Auto-uppercase inputs on change handled via onChange in render
   // or just normalize on submit. 
   // Requirement: "Input Enforcement: All SN, PID, and Assigned Officer inputs must be automatically converted and stored in UPPERCASE."
   // I will do it on onChange for better UX.
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    // Prevent submission if duplicate serial number detected
+    if (isDuplicateSerial) {
+      form.setError("serial_number", {
+        type: "manual",
+        message: "A device with this serial number already exists"
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       await onSave({
@@ -132,7 +151,11 @@ export function DeviceModal({ open, onOpenChange, device, onSave }: DeviceModalP
         assignment_date: values.assignment_date || "",
         notes: values.notes || "",
       })
+      // Only close modal if save was successful (no error thrown)
       onOpenChange(false)
+    } catch (error) {
+      // Error handling is done in onSave, just prevent modal from closing
+      console.error("Form submission error:", error)
     } finally {
       setIsSubmitting(false)
     }
@@ -168,8 +191,15 @@ export function DeviceModal({ open, onOpenChange, device, onSave }: DeviceModalP
                           //   form.setValue("pid_number", expected);
                           // }
                         }}
+                        className={isDuplicateSerial ? "border-red-500" : ""}
                       />
                     </FormControl>
+                    {isDuplicateSerial && (
+                      <p className="text-sm text-red-500 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        A device with this serial number already exists
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

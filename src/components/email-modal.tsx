@@ -51,12 +51,20 @@ export function EmailModal({ open, onOpenChange, subject, body, warning, recipie
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true)
     try {
+      if (!subject || !body) {
+        throw new Error("Email content is missing")
+      }
+      
       const filename = subject.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf'
       await generatePDF({ subject, body, warning }, filename)
       toast.success("PDF downloaded successfully")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating PDF:", error)
-      toast.error("Failed to generate PDF")
+      if (error?.message) {
+        toast.error(`Failed to generate PDF: ${error.message}`)
+      } else {
+        toast.error("Failed to generate PDF. Please try again.")
+      }
     } finally {
       setIsGeneratingPDF(false)
     }

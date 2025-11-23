@@ -107,10 +107,20 @@ export function InventoryDashboard() {
       })) as Device[]
       setInventory(data)
       setIsLoading(false)
-    }, (error) => {
+    }, (error: any) => {
       console.error("Error fetching data:", error)
-      toast.error("Failed to sync data from Firestore")
       setIsLoading(false)
+      
+      // Handle specific Firestore errors
+      if (error?.code === 'permission-denied') {
+        toast.error("Permission denied. Please check your Firebase rules.")
+      } else if (error?.code === 'unavailable') {
+        toast.error("Firestore service unavailable. Please check your connection.")
+      } else if (error?.code === 'failed-precondition') {
+        toast.error("Database error. Please refresh the page.")
+      } else {
+        toast.error("Failed to sync data from Firestore")
+      }
     })
 
     return () => unsubscribe()
@@ -209,6 +219,32 @@ export function InventoryDashboard() {
   // Actions
   const handleSaveDevice = async (data: DeviceFormData) => {
     try {
+      // Check for duplicate serial number when adding new device
+      if (!editingDevice) {
+        const normalizedSerial = data.serial_number.toUpperCase().trim()
+        const duplicate = inventory.find(
+          device => device.serial_number.toUpperCase().trim() === normalizedSerial
+        )
+        
+        if (duplicate) {
+          const error = new Error(`Device with serial number "${normalizedSerial}" already exists`)
+          throw error
+        }
+      } else {
+        // When editing, check if serial number conflicts with another device
+        const normalizedSerial = data.serial_number.toUpperCase().trim()
+        const duplicate = inventory.find(
+          device => 
+            device.id !== editingDevice.id && 
+            device.serial_number.toUpperCase().trim() === normalizedSerial
+        )
+        
+        if (duplicate) {
+          const error = new Error(`Another device with serial number "${normalizedSerial}" already exists`)
+          throw error
+        }
+      }
+
       const payload = {
         ...data,
         updated_at: new Date().toISOString()
@@ -217,24 +253,39 @@ export function InventoryDashboard() {
       if (editingDevice) {
         if (db) {
           await updateDoc(doc(db, "toughbooks", editingDevice.id), payload)
+          toast.success("Device updated successfully")
         } else {
           // Mock Update
           setInventory(prev => prev.map(i => i.id === editingDevice.id ? { ...i, ...payload } : i))
+          toast.success("Device updated successfully")
         }
-        toast.success("Device updated successfully")
       } else {
         if (db) {
           await addDoc(collection(db, "toughbooks"), payload)
+          toast.success("Device added successfully")
         } else {
           // Mock Add
           setInventory(prev => [...prev, { id: Date.now().toString(), ...payload }])
+          toast.success("Device added successfully")
         }
-        toast.success("Device added successfully")
       }
+      setIsDeviceModalOpen(false)
       setEditingDevice(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Save error:", error)
-      toast.error("Failed to save record")
+      
+      // Handle specific Firebase errors
+      if (error?.code === 'permission-denied') {
+        toast.error("Permission denied. Please check your Firebase rules.")
+      } else if (error?.code === 'unavailable') {
+        toast.error("Service temporarily unavailable. Please try again.")
+      } else if (error?.code === 'failed-precondition') {
+        toast.error("Operation failed. Please refresh and try again.")
+      } else if (error?.message) {
+        toast.error(`Error: ${error.message}`)
+      } else {
+        toast.error("Failed to save device. Please try again.")
+      }
     }
   }
 
@@ -250,69 +301,99 @@ export function InventoryDashboard() {
 
   // Email Logic
   const handleCapwinEmail = (device: Device) => {
-    setLoadingActions(prev => new Set(prev).add(`capwin-${device.id}`))
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    const subject = `New Device PID Registration: ${device.pid_number} / ${device.serial_number}`
-    
-    const body = `${today}\n\n` +
-      `CSO Dean Rohan, CSO Diana Riley\n` +
-      `Maryland State Police\n` +
-      `1201 Reisterstown Road\n` +
-      `Pikesville, MD 21208\n\n` +
-      `Subject: Request PID registration\n\n` +
-      `To Whom It May Concern,\n\n` +
-      `Could you please register the below PID for Cap Win connection. It will be utilized by authorized personnel.\n\n` +
-      `Server: CAPWIN1\n` +
-      `Domain: Z100\n` +
-      `Serial Number: ${device.serial_number}\n` +
-      `MDT ORI: MD0170501\n\n` +
-      `If you should have any questions or concerns pertaining to this request, please contact me at 301-341-1055.\n\n` +
-      `Sincerely,\n\n` +
-      `Orhan Biler\n` +
-      `Sergeant\n` +
-      `Cheverly Police Department\n` +
-      `6401 Forest Road |Cheverly, MD 20785\n` +
-      `Office 301-341-1055 / Fax 301-341-0176`
+    try {
+      if (!device.serial_number || !device.pid_number) {
+        toast.error("Device information is incomplete")
+        return
+      }
 
-    setEmailData({ subject, body, warning: "", recipient: "" })
-    setIsEmailModalOpen(true)
-    setLoadingActions(prev => {
-      const newSet = new Set(prev)
-      newSet.delete(`capwin-${device.id}`)
-      return newSet
-    })
+      setLoadingActions(prev => new Set(prev).add(`capwin-${device.id}`))
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      const subject = `New Device PID Registration: ${device.pid_number} / ${device.serial_number}`
+      
+      const body = `${today}\n\n` +
+        `CSO Dean Rohan, CSO Diana Riley\n` +
+        `Maryland State Police\n` +
+        `1201 Reisterstown Road\n` +
+        `Pikesville, MD 21208\n\n` +
+        `Subject: Request PID registration\n\n` +
+        `To Whom It May Concern,\n\n` +
+        `Could you please register the below PID for Cap Win connection. It will be utilized by authorized personnel.\n\n` +
+        `Server: CAPWIN1\n` +
+        `Domain: Z100\n` +
+        `Serial Number: ${device.serial_number}\n` +
+        `MDT ORI: MD0170501\n\n` +
+        `If you should have any questions or concerns pertaining to this request, please contact me at 301-341-1055.\n\n` +
+        `Sincerely,\n\n` +
+        `Orhan Biler\n` +
+        `Sergeant\n` +
+        `Cheverly Police Department\n` +
+        `6401 Forest Road |Cheverly, MD 20785\n` +
+        `Office 301-341-1055 / Fax 301-341-0176`
+
+      setEmailData({ subject, body, warning: "", recipient: "" })
+      setIsEmailModalOpen(true)
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(`capwin-${device.id}`)
+        return newSet
+      })
+    } catch (error: any) {
+      console.error("Error generating CAPWIN email:", error)
+      toast.error("Failed to generate email. Please try again.")
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(`capwin-${device.id}`)
+        return newSet
+      })
+    }
   }
 
   const handleOfficerEmail = (device: Device) => {
-    setLoadingActions(prev => new Set(prev).add(`officer-${device.id}`))
-    const last4 = device.serial_number.slice(-4)
-    const deviceType = device.device_type || "Toughbook"
-    const subject = `${deviceType} Assignment Notification: Unit ${last4}`
-    
-    let warning = ""
-    if (device.status !== "Assigned") {
-      warning = "WARNING: This device is currently NOT marked as 'Assigned'."
+    try {
+      if (!device.serial_number || !device.pid_number) {
+        toast.error("Device information is incomplete")
+        return
+      }
+
+      setLoadingActions(prev => new Set(prev).add(`officer-${device.id}`))
+      const last4 = device.serial_number.slice(-4)
+      const deviceType = device.device_type || "Toughbook"
+      const subject = `${deviceType} Assignment Notification: Unit ${last4}`
+      
+      let warning = ""
+      if (device.status !== "Assigned") {
+        warning = "WARNING: This device is currently NOT marked as 'Assigned'."
+      }
+
+      const body = `${warning ? warning + "\n\n" : ""}Your new ${deviceType} has been provisioned. Your system PID is: ${device.pid_number}.\n` +
+                   `Please ensure the CAPWIN software launches correctly using this ID.\n` +
+                   `If you encounter any issues, please contact the IT help desk at 301-341-1055.`
+
+      // Email Guessing Logic
+      let emailTo = ""
+      if (device.officer) {
+        let cleanName = device.officer.replace(/^(SGT|OFF|CPT|LT|CHIEF|DET)\.?\s*/i, '').trim()
+        cleanName = cleanName.replace(/\s+/g, '.').toLowerCase()
+        emailTo = `${cleanName}@cpd.md.gov`
+      }
+
+      setEmailData({ subject, body, warning, recipient: emailTo })
+      setIsEmailModalOpen(true)
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(`officer-${device.id}`)
+        return newSet
+      })
+    } catch (error: any) {
+      console.error("Error generating officer email:", error)
+      toast.error("Failed to generate email. Please try again.")
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(`officer-${device.id}`)
+        return newSet
+      })
     }
-
-    const body = `${warning ? warning + "\n\n" : ""}Your new ${deviceType} has been provisioned. Your system PID is: ${device.pid_number}.\n` +
-                 `Please ensure the CAPWIN software launches correctly using this ID.\n` +
-                 `If you encounter any issues, please contact the IT help desk at 301-341-1055.`
-
-    // Email Guessing Logic
-    let emailTo = ""
-    if (device.officer) {
-      let cleanName = device.officer.replace(/^(SGT|OFF|CPT|LT|CHIEF|DET)\.?\s*/i, '').trim()
-      cleanName = cleanName.replace(/\s+/g, '.').toLowerCase()
-      emailTo = `${cleanName}@cpd.md.gov`
-    }
-
-    setEmailData({ subject, body, warning, recipient: emailTo })
-    setIsEmailModalOpen(true)
-    setLoadingActions(prev => {
-      const newSet = new Set(prev)
-      newSet.delete(`officer-${device.id}`)
-      return newSet
-    })
   }
 
   // Bulk Selection Handlers
@@ -338,61 +419,99 @@ export function InventoryDashboard() {
 
   // Bulk Email Generation
   const handleBulkCapwinEmail = () => {
-    if (selectedDevices.size === 0) {
-      toast.error("Please select at least one device")
-      return
+    try {
+      if (selectedDevices.size === 0) {
+        toast.error("Please select at least one device")
+        return
+      }
+      setLoadingActions(prev => new Set(prev).add('bulk-capwin'))
+
+      const selectedDeviceList = filteredInventory.filter(d => selectedDevices.has(d.id))
+      
+      if (selectedDeviceList.length === 0) {
+        toast.error("No valid devices selected")
+        setLoadingActions(prev => {
+          const newSet = new Set(prev)
+          newSet.delete('bulk-capwin')
+          return newSet
+        })
+        return
+      }
+
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      const subject = `Bulk Device PID Registration Request`
+      
+      let deviceList = ""
+      selectedDeviceList.forEach((device, index) => {
+        deviceList += `${index + 1}. Server: CAPWIN1 | Domain: Z100 | Serial Number: ${device.serial_number} | MDT ORI: MD0170501\n`
+      })
+
+      const body = `${today}\n\n` +
+        `CSO Dean Rohan, CSO Diana Riley\n` +
+        `Maryland State Police\n` +
+        `1201 Reisterstown Road\n` +
+        `Pikesville, MD 21208\n\n` +
+        `Subject: Request PID registration\n\n` +
+        `To Whom It May Concern,\n\n` +
+        `Could you please register the below PIDs for Cap Win connection. They will be utilized by authorized personnel.\n\n` +
+        `${deviceList}\n` +
+        `If you should have any questions or concerns pertaining to this request, please contact me at 301-341-1055.\n\n` +
+        `Sincerely,\n\n` +
+        `Orhan Biler\n` +
+        `Sergeant\n` +
+        `Cheverly Police Department\n` +
+        `6401 Forest Road |Cheverly, MD 20785\n` +
+        `Office 301-341-1055 / Fax 301-341-0176`
+
+      setEmailData({ subject, body, warning: "", recipient: "" })
+      setIsEmailModalOpen(true)
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete('bulk-capwin')
+        return newSet
+      })
+    } catch (error: any) {
+      console.error("Error generating bulk CAPWIN email:", error)
+      toast.error("Failed to generate email. Please try again.")
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete('bulk-capwin')
+        return newSet
+      })
     }
-    setLoadingActions(prev => new Set(prev).add('bulk-capwin'))
-
-    const selectedDeviceList = filteredInventory.filter(d => selectedDevices.has(d.id))
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    const subject = `Bulk Device PID Registration Request`
-    
-    let deviceList = ""
-    selectedDeviceList.forEach((device, index) => {
-      deviceList += `${index + 1}. Server: CAPWIN1 | Domain: Z100 | Serial Number: ${device.serial_number} | MDT ORI: MD0170501\n`
-    })
-
-    const body = `${today}\n\n` +
-      `CSO Dean Rohan, CSO Diana Riley\n` +
-      `Maryland State Police\n` +
-      `1201 Reisterstown Road\n` +
-      `Pikesville, MD 21208\n\n` +
-      `Subject: Request PID registration\n\n` +
-      `To Whom It May Concern,\n\n` +
-      `Could you please register the below PIDs for Cap Win connection. They will be utilized by authorized personnel.\n\n` +
-      `${deviceList}\n` +
-      `If you should have any questions or concerns pertaining to this request, please contact me at 301-341-1055.\n\n` +
-      `Sincerely,\n\n` +
-      `Orhan Biler\n` +
-      `Sergeant\n` +
-      `Cheverly Police Department\n` +
-      `6401 Forest Road |Cheverly, MD 20785\n` +
-      `Office 301-341-1055 / Fax 301-341-0176`
-
-    setEmailData({ subject, body, warning: "", recipient: "" })
-    setIsEmailModalOpen(true)
-    setLoadingActions(prev => {
-      const newSet = new Set(prev)
-      newSet.delete('bulk-capwin')
-      return newSet
-    })
   }
 
   const handleBulkOfficerEmail = () => {
-    if (selectedDevices.size === 0) {
-      toast.error("Please select at least one device")
-      return
-    }
-    setLoadingActions(prev => new Set(prev).add('bulk-officer'))
+    try {
+      if (selectedDevices.size === 0) {
+        toast.error("Please select at least one device")
+        return
+      }
+      setLoadingActions(prev => new Set(prev).add('bulk-officer'))
 
-    const selectedDeviceList = filteredInventory.filter(d => selectedDevices.has(d.id))
-    const assignedDevices = selectedDeviceList.filter(d => d.status === "Assigned" && d.officer)
-    
-    if (assignedDevices.length === 0) {
-      toast.error("No assigned devices selected. Please select devices that are assigned to officers.")
-      return
-    }
+      const selectedDeviceList = filteredInventory.filter(d => selectedDevices.has(d.id))
+      
+      if (selectedDeviceList.length === 0) {
+        toast.error("No valid devices selected")
+        setLoadingActions(prev => {
+          const newSet = new Set(prev)
+          newSet.delete('bulk-officer')
+          return newSet
+        })
+        return
+      }
+
+      const assignedDevices = selectedDeviceList.filter(d => d.status === "Assigned" && d.officer)
+      
+      if (assignedDevices.length === 0) {
+        toast.error("No assigned devices selected. Please select devices that are assigned to officers.")
+        setLoadingActions(prev => {
+          const newSet = new Set(prev)
+          newSet.delete('bulk-officer')
+          return newSet
+        })
+        return
+      }
 
     // Group by officer email
     const devicesByOfficer = new Map<string, Device[]>()
@@ -427,18 +546,27 @@ export function InventoryDashboard() {
                  `Please ensure the CAPWIN software launches correctly using these IDs.\n` +
                  `If you encounter any issues, please contact the IT help desk at 301-341-1055.`
 
-    setEmailData({ 
-      subject, 
-      body, 
-      warning: devices.length !== selectedDeviceList.length ? `Note: Only ${devices.length} of ${selectedDeviceList.length} selected devices are assigned to officers.` : "", 
-      recipient: firstOfficer 
-    })
-    setIsEmailModalOpen(true)
-    setLoadingActions(prev => {
-      const newSet = new Set(prev)
-      newSet.delete('bulk-officer')
-      return newSet
-    })
+      setEmailData({ 
+        subject, 
+        body, 
+        warning: devices.length !== selectedDeviceList.length ? `Note: Only ${devices.length} of ${selectedDeviceList.length} selected devices are assigned to officers.` : "", 
+        recipient: firstOfficer 
+      })
+      setIsEmailModalOpen(true)
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete('bulk-officer')
+        return newSet
+      })
+    } catch (error: any) {
+      console.error("Error generating bulk officer email:", error)
+      toast.error("Failed to generate email. Please try again.")
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete('bulk-officer')
+        return newSet
+      })
+    }
   }
 
   // Individual PID Deactivation PDF
@@ -468,12 +596,20 @@ export function InventoryDashboard() {
         `6401 Forest Road |Cheverly, MD 20785\n` +
         `Office 301-341-1055 / Fax 301-341-0176`
 
+      if (!device.serial_number || !device.pid_number) {
+        throw new Error("Device information is incomplete")
+      }
+      
       const filename = `pid_deactivation_${device.pid_number}_${device.serial_number}.pdf`
       await generatePDF({ subject, body, warning: "" }, filename)
       toast.success("Deactivation PDF downloaded successfully")
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating deactivation PDF:", error)
-      toast.error("Failed to generate PDF")
+      if (error?.message) {
+        toast.error(`Failed to generate PDF: ${error.message}`)
+      } else {
+        toast.error("Failed to generate PDF. Please try again.")
+      }
     } finally {
       setLoadingActions(prev => {
         const newSet = new Set(prev)
@@ -518,12 +654,20 @@ export function InventoryDashboard() {
         `6401 Forest Road |Cheverly, MD 20785\n` +
         `Office 301-341-1055 / Fax 301-341-0176`
 
+      if (selectedDeviceList.length === 0) {
+        throw new Error("No devices selected")
+      }
+      
       const filename = `bulk_pid_deactivation_${selectedDeviceList.length}_devices.pdf`
       await generatePDF({ subject, body, warning: "" }, filename)
       toast.success(`Deactivation PDF downloaded for ${selectedDeviceList.length} device(s)`)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating bulk deactivation PDF:", error)
-      toast.error("Failed to generate PDF")
+      if (error?.message) {
+        toast.error(`Failed to generate PDF: ${error.message}`)
+      } else {
+        toast.error("Failed to generate PDF. Please try again.")
+      }
     } finally {
       setLoadingActions(prev => {
         const newSet = new Set(prev)
@@ -893,6 +1037,7 @@ export function InventoryDashboard() {
         onOpenChange={setIsDeviceModalOpen} 
         device={editingDevice}
         onSave={handleSaveDevice}
+        existingDevices={inventory}
       />
 
       <EmailModal 
