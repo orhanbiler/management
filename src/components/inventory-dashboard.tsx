@@ -78,6 +78,7 @@ export function InventoryDashboard() {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("All")
+  const [pidRegisteredFilter, setPidRegisteredFilter] = useState<string>("All")
   
   // Sorting State
   const [sortBy, setSortBy] = useState<"asset_id" | "serial_number" | "pid_number" | "officer" | "status">("asset_id")
@@ -165,6 +166,14 @@ export function InventoryDashboard() {
       result = result.filter(item => item.status === statusFilter)
     }
 
+    if (pidRegisteredFilter !== "All") {
+      if (pidRegisteredFilter === "Registered") {
+        result = result.filter(item => item.pid_registered === true)
+      } else if (pidRegisteredFilter === "Not Registered") {
+        result = result.filter(item => item.pid_registered !== true)
+      }
+    }
+
     // Sorting
     result = [...result].sort((a, b) => {
       let aValue: string | number = ""
@@ -217,7 +226,7 @@ export function InventoryDashboard() {
       })
       return newSet
     })
-  }, [inventory, searchQuery, statusFilter, sortBy, sortOrder])
+  }, [inventory, searchQuery, statusFilter, pidRegisteredFilter, sortBy, sortOrder])
 
   // Handle column header click for sorting
   const handleSort = (column: typeof sortBy) => {
@@ -1129,6 +1138,20 @@ export function InventoryDashboard() {
                   <SelectItem value="Unassigned">Unassigned</SelectItem>
                   <SelectItem value="Unknown">Unknown</SelectItem>
                   <SelectItem value="Retired">Retired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">PID Registered:</span>
+              <Select value={pidRegisteredFilter} onValueChange={setPidRegisteredFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="Registered">Registered</SelectItem>
+                  <SelectItem value="Not Registered">Not Registered</SelectItem>
                 </SelectContent>
               </Select>
             </div>

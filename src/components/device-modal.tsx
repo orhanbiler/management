@@ -43,6 +43,7 @@ const formSchema = z.object({
   ori_number: z.string().optional(),
   status: z.enum(["Assigned", "Unassigned", "Retired", "Unknown"]),
   to_be_retired: z.boolean().optional(),
+  pid_registered: z.boolean().optional(),
   officer: z.string().optional(),
   assignment_date: z.string().optional(),
   notes: z.string().optional(),
@@ -88,6 +89,7 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
       ori_number: "",
       status: "Unassigned",
       to_be_retired: false,
+      pid_registered: false,
       officer: "",
       assignment_date: new Date().toISOString().split("T")[0],
       notes: "",
@@ -106,6 +108,7 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
           ori_number: device.ori_number || "",
           status: device.status,
           to_be_retired: device.to_be_retired || false,
+          pid_registered: device.pid_registered || false,
           officer: device.officer,
           assignment_date: device.assignment_date,
           notes: device.notes,
@@ -119,6 +122,7 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
           ori_number: "",
           status: "Unassigned",
           to_be_retired: false,
+          pid_registered: false,
           officer: "",
           assignment_date: new Date().toISOString().split("T")[0],
           notes: "",
@@ -194,6 +198,7 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
         ori_number: values.ori_number ? values.ori_number.toUpperCase() : "",
         status: values.status,
         to_be_retired: values.to_be_retired || false,
+        pid_registered: values.pid_registered || false,
         officer: (values.officer || "").toUpperCase(),
         assignment_date: values.assignment_date || "",
         notes: values.notes || "",
@@ -370,29 +375,55 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
               />
             </div>
 
-            {/* To Be Retired Checkbox */}
-            <FormField
-              control={form.control}
-              name="to_be_retired"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      To Be Retired
-                    </FormLabel>
-                    <FormDescription>
-                      Mark this device as scheduled for retirement
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* To Be Retired Checkbox */}
+              <FormField
+                control={form.control}
+                name="to_be_retired"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        To Be Retired
+                      </FormLabel>
+                      <FormDescription>
+                        Mark this device as scheduled for retirement
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {/* PID Registered Checkbox */}
+              <FormField
+                control={form.control}
+                name="pid_registered"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        PID Registered
+                      </FormLabel>
+                      <FormDescription>
+                        Mark if PID is registered in the system
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* ORI Number - Only show for Desktop or Other */}
             {(deviceType === "Desktop" || deviceType === "Other") && (

@@ -7,6 +7,7 @@ export interface Device {
   ori_number?: string;
   status: "Assigned" | "Unassigned" | "Retired" | "Unknown";
   to_be_retired?: boolean;
+  pid_registered?: boolean;
   officer: string;
   assignment_date: string;
   notes: string;
