@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { Laptop, Lock, Loader2 } from "lucide-react"
+import { ModeToggle } from "@/components/mode-toggle"
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -58,7 +59,10 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 p-4 relative">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
       <Card className="w-full max-w-md shadow-xl border-0">
         <CardHeader className="space-y-1 text-center pb-8">
           <div className="flex justify-center mb-4">

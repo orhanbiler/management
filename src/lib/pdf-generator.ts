@@ -1,12 +1,15 @@
 import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { Device } from '@/types'
 
 interface PDFContent {
   subject: string
   body: string
   warning?: string
+  recipient?: string
 }
 
-export async function generatePDF({ subject, body, warning }: PDFContent, filename: string = 'document.pdf') {
+export async function generatePDF({ subject, body, warning, recipient }: PDFContent, filename: string = 'document.pdf') {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -62,6 +65,15 @@ export async function generatePDF({ subject, body, warning }: PDFContent, filena
   doc.setFont('times', 'normal')
   // Use extracted TO or default to Chief of Police
   let toText = 'Chief of Police'
+  
+  // If recipient is explicitly provided (e.g. for officer email), use that
+  if (recipient) {
+    // Clean up recipient email address to just show name if possible, or leave as is
+    // For now, let's assume recipient passed here is what we want to show if it's not an email
+    // But actually, the recipient field in PDFContent seems to be email address in the calling code.
+    // Let's stick to memoFields.to if available, otherwise logic below.
+  }
+  
   if (memoFields.to) {
     // Clean up the TO field - remove extra address lines
     const toLines = memoFields.to.split('\n').filter(line => {
@@ -211,6 +223,108 @@ export async function generatePDF({ subject, body, warning }: PDFContent, filena
   doc.text(contactText, rightAlignX - contactWidth, signatureY + 12)
 
   // Save the PDF
+  doc.save(filename)
+}
+
+export async function generateDeviceListPDF(devices: Device[], filename: string = 'device_inventory.pdf') {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  })
+
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 10
+  let yPosition = margin
+
+  // Load and add banner image
+  try {
+    const bannerDataUrl = await loadImageAsDataUrl('/banner.png')
+    const bannerImg = new Image()
+    await new Promise((resolve, reject) => {
+      bannerImg.onload = resolve
+      bannerImg.onerror = reject
+      bannerImg.src = bannerDataUrl
+    })
+    
+    // Calculate banner dimensions to fit width while maintaining aspect ratio
+    // Use slightly less than full width for margins
+    const bannerDisplayWidth = pageWidth - (margin * 2)
+    const bannerAspectRatio = bannerImg.width / bannerImg.height
+    const bannerHeight = bannerDisplayWidth / bannerAspectRatio
+    
+    doc.addImage(bannerDataUrl, 'PNG', margin, yPosition, bannerDisplayWidth, bannerHeight)
+    yPosition += bannerHeight + 10
+  } catch (error) {
+    console.error('Error loading banner image:', error)
+    yPosition += 10
+  }
+
+  // Title and Date
+  doc.setFontSize(14)
+  doc.setFont('times', 'bold')
+  doc.text('Device Inventory List', margin, yPosition)
+  
+  doc.setFontSize(8)
+  doc.setFont('times', 'normal')
+  const dateStr = new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+  doc.text(`Generated: ${dateStr}`, pageWidth - margin - doc.getTextWidth(`Generated: ${dateStr}`), yPosition)
+  
+  yPosition += 8
+
+  // Prepare table data
+  const tableHead = [['SN', 'PID', 'Asset ID', 'Type', 'Status', 'Officer', 'Assignment Date']]
+  const tableBody = devices.map(device => [
+    device.serial_number || '-',
+    device.pid_number || '-',
+    device.asset_id || '-',
+    device.device_type || '-',
+    device.status || '-',
+    device.officer || '-',
+    device.assignment_date || '-'
+  ])
+
+  // Generate table
+  autoTable(doc, {
+    startY: yPosition,
+    head: tableHead,
+    body: tableBody,
+    theme: 'striped',
+    headStyles: {
+      fillColor: [41, 128, 185],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 7
+    },
+    styles: {
+      fontSize: 7,
+      cellPadding: 2,
+    },
+    columnStyles: {
+      0: { cellWidth: 35 }, // SN
+      1: { cellWidth: 30 }, // PID
+      2: { cellWidth: 25 }, // Asset ID
+      3: { cellWidth: 25 }, // Type
+      4: { cellWidth: 25 }, // Status
+      5: { cellWidth: 'auto' }, // Officer
+      6: { cellWidth: 35 }  // Date
+    },
+    margin: { top: margin, right: margin, bottom: margin, left: margin },
+    didDrawPage: (data) => {
+      // Add page number at the bottom
+      const str = 'Page ' + doc.internal.getNumberOfPages()
+      doc.setFontSize(8)
+      doc.text(str, pageWidth - margin - 10, pageHeight - 5)
+    }
+  })
+
   doc.save(filename)
 }
 
@@ -404,4 +518,3 @@ function loadImageAsDataUrl(src: string): Promise<string> {
     img.src = src
   })
 }
-

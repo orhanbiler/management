@@ -8,7 +8,8 @@ import {
   updateDoc, 
   doc, 
   query, 
-  orderBy
+  orderBy,
+  writeBatch
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Device, DeviceFormData } from "@/types"
@@ -33,6 +34,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { DeviceModal } from "@/components/device-modal"
 import { EmailModal } from "@/components/email-modal"
+import { PidComparisonModal } from "@/components/pid-comparison-modal"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -54,10 +56,19 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Loader2
+  Loader2,
+  FileSearch,
+  FileDown,
+  BarChart3,
+  Laptop,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  TrendingUp
 } from "lucide-react"
 import { toast } from "sonner"
-import { generatePDF } from "@/lib/pdf-generator"
+import { generatePDF, generateDeviceListPDF } from "@/lib/pdf-generator"
 
 export function InventoryDashboard() {
   const [inventory, setInventory] = useState<Device[]>([])
@@ -78,6 +89,8 @@ export function InventoryDashboard() {
   
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [emailData, setEmailData] = useState({ subject: "", body: "", warning: "", recipient: "" })
+  
+  const [isPidComparisonModalOpen, setIsPidComparisonModalOpen] = useState(false)
   
   // Bulk Selection State
   const [selectedDevices, setSelectedDevices] = useState<Set<string>>(new Set())
@@ -221,27 +234,62 @@ export function InventoryDashboard() {
     try {
       // Check for duplicate serial number when adding new device
       if (!editingDevice) {
-        const normalizedSerial = data.serial_number.toUpperCase().trim()
-        const duplicate = inventory.find(
-          device => device.serial_number.toUpperCase().trim() === normalizedSerial
-        )
-        
-        if (duplicate) {
-          const error = new Error(`Device with serial number "${normalizedSerial}" already exists`)
-          throw error
+        // Only check serial number duplicate if serial number is provided
+        if (data.serial_number && data.serial_number.trim()) {
+          const normalizedSerial = data.serial_number.toUpperCase().trim()
+          const duplicate = inventory.find(
+            device => device.serial_number && device.serial_number.toUpperCase().trim() === normalizedSerial
+          )
+          
+          if (duplicate) {
+            const error = new Error(`Device with serial number "${normalizedSerial}" already exists`)
+            throw error
+          }
+        }
+
+        // Only check PID number duplicate if PID number is provided
+        if (data.pid_number && data.pid_number.trim()) {
+          const normalizedPid = data.pid_number.toUpperCase().trim()
+          const duplicate = inventory.find(
+            device => device.pid_number && device.pid_number.toUpperCase().trim() === normalizedPid
+          )
+          
+          if (duplicate) {
+            const error = new Error(`Device with PID number "${normalizedPid}" already exists`)
+            throw error
+          }
         }
       } else {
         // When editing, check if serial number conflicts with another device
-        const normalizedSerial = data.serial_number.toUpperCase().trim()
-        const duplicate = inventory.find(
-          device => 
-            device.id !== editingDevice.id && 
-            device.serial_number.toUpperCase().trim() === normalizedSerial
-        )
-        
-        if (duplicate) {
-          const error = new Error(`Another device with serial number "${normalizedSerial}" already exists`)
-          throw error
+        if (data.serial_number && data.serial_number.trim()) {
+          const normalizedSerial = data.serial_number.toUpperCase().trim()
+          const duplicate = inventory.find(
+            device => 
+              device.id !== editingDevice.id && 
+              device.serial_number && 
+              device.serial_number.toUpperCase().trim() === normalizedSerial
+          )
+          
+          if (duplicate) {
+            const error = new Error(`Another device with serial number "${normalizedSerial}" already exists`)
+            throw error
+          }
+        }
+
+        // When editing, check if PID number conflicts with another device
+        if (data.pid_number && data.pid_number.trim()) {
+          const normalizedPid = data.pid_number.toUpperCase().trim()
+          const duplicate = inventory.find(
+            device => 
+              device.id !== editingDevice.id && 
+              device.pid_number && 
+              device.pid_number.toUpperCase().trim() === normalizedPid
+          )
+          
+          if (duplicate) {
+            const error = new Error(`Another device with PID number "${normalizedPid}" already exists`)
+            throw error
+          }
         }
       }
 
@@ -297,6 +345,62 @@ export function InventoryDashboard() {
   const handleAddNew = () => {
     setEditingDevice(null)
     setIsDeviceModalOpen(true)
+  }
+
+  const handleBulkAddDevices = async (devices: DeviceFormData[]) => {
+    if (devices.length === 0) {
+      toast.error("No devices to add")
+      return
+    }
+
+    try {
+      if (db) {
+        // Use Firestore Batch for atomic and faster writes
+        const batch = writeBatch(db)
+        const collectionRef = collection(db, "toughbooks")
+        
+        // Firestore batches are limited to 500 operations
+        const CHUNK_SIZE = 450 
+        const chunks = []
+        
+        for (let i = 0; i < devices.length; i += CHUNK_SIZE) {
+          chunks.push(devices.slice(i, i + CHUNK_SIZE))
+        }
+
+        let successCount = 0
+
+        for (const chunk of chunks) {
+          const chunkBatch = writeBatch(db)
+          
+          chunk.forEach(deviceData => {
+            const docRef = doc(collectionRef) // Generate new ID
+            const payload = {
+              ...deviceData,
+              updated_at: new Date().toISOString()
+            }
+            chunkBatch.set(docRef, payload)
+            successCount++
+          })
+
+          await chunkBatch.commit()
+        }
+
+        toast.success(`Successfully added ${successCount} device(s)`)
+      } else {
+        // Mock Add
+        const newDevices = devices.map(d => ({
+          id: Date.now().toString() + Math.random(),
+          ...d,
+          updated_at: new Date().toISOString()
+        }))
+        setInventory(prev => [...prev, ...newDevices])
+        toast.success(`Successfully added ${newDevices.length} device(s)`)
+      }
+    } catch (error: any) {
+      console.error("Bulk add error:", error)
+      toast.error(`Failed to add devices: ${error?.message || "Unknown error"}`)
+      throw error
+    }
   }
 
   // Email Logic
@@ -677,8 +781,327 @@ export function InventoryDashboard() {
     }
   }
 
+  const handleExportList = async () => {
+    try {
+      const devicesToExport = filteredInventory
+      if (devicesToExport.length === 0) {
+        toast.error("No devices to export")
+        return
+      }
+      
+      toast.info("Generating PDF...")
+      await generateDeviceListPDF(devicesToExport)
+      toast.success("Inventory list exported successfully")
+    } catch (error) {
+      console.error("Export error:", error)
+      toast.error("Failed to export inventory list")
+    }
+  }
+
+  // Calculate comprehensive statistics
+  const stats = (() => {
+    const total = inventory.length
+    const byStatus = {
+      Assigned: inventory.filter(d => d.status === "Assigned").length,
+      Unassigned: inventory.filter(d => d.status === "Unassigned").length,
+      Retired: inventory.filter(d => d.status === "Retired").length,
+      Unknown: inventory.filter(d => d.status === "Unknown").length,
+    }
+    const byType = {
+      Toughbook: inventory.filter(d => d.device_type === "Toughbook").length,
+      Laptop: inventory.filter(d => d.device_type === "Laptop").length,
+      Desktop: inventory.filter(d => d.device_type === "Desktop").length,
+      Other: inventory.filter(d => d.device_type === "Other").length,
+    }
+    const toBeRetired = inventory.filter(d => d.to_be_retired === true).length
+    const pidMismatches = inventory.filter(d => {
+      if (!d.serial_number || !d.pid_number) return false
+      return isPidMismatch(d.serial_number, d.pid_number)
+    }).length
+    const withoutSerial = inventory.filter(d => !d.serial_number || d.serial_number.trim() === "").length
+    const withoutPid = inventory.filter(d => !d.pid_number || d.pid_number.trim() === "").length
+    const withoutAssetId = inventory.filter(d => !d.asset_id || d.asset_id.trim() === "").length
+    
+    // Recently assigned (last 30 days)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const recentlyAssigned = inventory.filter(d => {
+      if (!d.assignment_date) return false
+      const assignmentDate = new Date(d.assignment_date)
+      return assignmentDate >= thirtyDaysAgo
+    }).length
+
+    // Assignment rate (percentage)
+    const assignmentRate = total > 0 ? Math.round((byStatus.Assigned / total) * 100) : 0
+
+    return {
+      total,
+      byStatus,
+      byType,
+      toBeRetired,
+      pidMismatches,
+      withoutSerial,
+      withoutPid,
+      withoutAssetId,
+      recentlyAssigned,
+      assignmentRate
+    }
+  })()
+
   return (
     <div className="space-y-6">
+      {/* Statistics Dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Devices */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Devices</p>
+                <p className="text-3xl font-bold mt-2">{stats.total}</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Assigned Devices */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Assigned</p>
+                <p className="text-3xl font-bold mt-2">{stats.byStatus.Assigned}</p>
+                <p className="text-xs text-muted-foreground mt-1">{stats.assignmentRate}% of total</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Unassigned Devices */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Unassigned</p>
+                <p className="text-3xl font-bold mt-2">{stats.byStatus.Unassigned}</p>
+                <p className="text-xs text-muted-foreground mt-1">Available for assignment</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+                <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* To Be Retired */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">To Be Retired</p>
+                <p className="text-3xl font-bold mt-2">{stats.toBeRetired}</p>
+                <p className="text-xs text-muted-foreground mt-1">Scheduled for retirement</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Statistics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Status Breakdown */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold">Status Breakdown</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm">Assigned</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-600 rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byStatus.Assigned / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Assigned}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm">Unassigned</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-600 rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byStatus.Unassigned / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Unassigned}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-gray-600" />
+                  <span className="text-sm">Retired</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gray-600 rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byStatus.Retired / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Retired}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm">Unknown</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-yellow-600 rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byStatus.Unknown / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Unknown}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Device Type Breakdown */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Laptop className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold">Device Type Breakdown</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Toughbook</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byType.Toughbook / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Toughbook}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Laptop</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byType.Laptop / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Laptop}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Desktop</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byType.Desktop / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Desktop}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Other</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.byType.Other / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Other}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* PID Mismatches */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <span className="text-sm font-medium">PID Mismatches</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.pidMismatches}</p>
+            <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
+          </CardContent>
+        </Card>
+
+        {/* Missing Data */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <span className="text-sm font-medium">Missing Serial</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.withoutSerial}</p>
+            <p className="text-xs text-muted-foreground mt-1">Incomplete records</p>
+          </CardContent>
+        </Card>
+
+        {/* Missing PID */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <span className="text-sm font-medium">Missing PID</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.withoutPid}</p>
+            <p className="text-xs text-muted-foreground mt-1">Incomplete records</p>
+          </CardContent>
+        </Card>
+
+        {/* Recently Assigned */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium">Recent Assignments</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.recentlyAssigned}</p>
+            <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Controls */}
       <Card>
         <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
@@ -704,6 +1127,7 @@ export function InventoryDashboard() {
                   <SelectItem value="All">All Statuses</SelectItem>
                   <SelectItem value="Assigned">Assigned</SelectItem>
                   <SelectItem value="Unassigned">Unassigned</SelectItem>
+                  <SelectItem value="Unknown">Unknown</SelectItem>
                   <SelectItem value="Retired">Retired</SelectItem>
                 </SelectContent>
               </Select>
@@ -772,6 +1196,15 @@ export function InventoryDashboard() {
                 </div>
               </div>
             )}
+            <Button 
+              variant="outline" 
+              onClick={() => setIsPidComparisonModalOpen(true)}
+            >
+              <FileSearch className="mr-2 h-4 w-4" /> Compare PIDs
+            </Button>
+            <Button variant="outline" onClick={handleExportList}>
+              <FileDown className="mr-2 h-4 w-4" /> Export PDF
+            </Button>
             <Button onClick={handleAddNew}>
               <Plus className="mr-2 h-4 w-4" /> Add Device
             </Button>
@@ -781,8 +1214,9 @@ export function InventoryDashboard() {
 
       {/* Table */}
       <Card className="overflow-hidden shadow-sm border-t-0">
-        <Table>
-          <TableHeader className="bg-muted/50">
+        <div className="max-h-[calc(100vh-300px)] overflow-x-auto overflow-y-auto">
+          <table className="w-full caption-bottom text-sm">
+            <thead className="bg-muted sticky top-0 z-10 shadow-sm [&_tr]:border-b">
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
@@ -860,8 +1294,8 @@ export function InventoryDashboard() {
               </TableHead>
               <TableHead className="text-center">Actions</TableHead>
             </TableRow>
-          </TableHeader>
-          <TableBody>
+              </thead>
+              <tbody className="[&_tr:last-child]:border-0">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
@@ -896,7 +1330,13 @@ export function InventoryDashboard() {
                 const expected = calculateExpectedPid(device.serial_number)
                 
                 return (
-                  <TableRow key={device.id} className={mismatch ? "bg-red-50/50 hover:bg-red-100/60" : "hover:bg-muted/50"}>
+                  <TableRow 
+                    key={device.id} 
+                    className={`
+                      ${mismatch ? "bg-red-50/50 hover:bg-red-100/60" : "hover:bg-muted/50"}
+                      ${device.to_be_retired ? "opacity-70 bg-gray-50/50 dark:bg-gray-900/20" : ""}
+                    `}
+                  >
                     <TableCell>
                       <Checkbox
                         checked={selectedDevices.has(device.id)}
@@ -946,10 +1386,16 @@ export function InventoryDashboard() {
                     <TableCell>
                       <Badge variant={
                         device.status === "Assigned" ? "success" : 
-                        device.status === "Unassigned" ? "info" : "outline"
+                        device.status === "Unassigned" ? "info" : 
+                        device.status === "Unknown" ? "warning" : "outline"
                       }>
                         {device.status}
                       </Badge>
+                      {device.to_be_retired && (
+                        <Badge variant="destructive" className="ml-2 text-[10px] px-1 py-0 h-4">
+                          RETIRE
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-center gap-1">
@@ -1021,8 +1467,9 @@ export function InventoryDashboard() {
                 )
               })
             )}
-          </TableBody>
-        </Table>
+              </tbody>
+            </table>
+        </div>
         <div className="p-4 border-t bg-muted/20 text-xs text-muted-foreground flex justify-between items-center">
            <span>Total Devices: <span className="font-medium text-foreground">{filteredInventory.length}</span></span>
            <div className="flex items-center gap-2">
@@ -1047,6 +1494,13 @@ export function InventoryDashboard() {
         body={emailData.body}
         warning={emailData.warning}
         recipientEmail={emailData.recipient}
+      />
+
+      <PidComparisonModal
+        open={isPidComparisonModalOpen}
+        onOpenChange={setIsPidComparisonModalOpen}
+        inventory={inventory}
+        onAddDevices={handleBulkAddDevices}
       />
     </div>
   )

@@ -5,7 +5,8 @@ export interface Device {
   asset_id: string;
   device_type: "Toughbook" | "Laptop" | "Desktop" | "Other";
   ori_number?: string;
-  status: "Assigned" | "Unassigned" | "Retired";
+  status: "Assigned" | "Unassigned" | "Retired" | "Unknown";
+  to_be_retired?: boolean;
   officer: string;
   assignment_date: string;
   notes: string;
