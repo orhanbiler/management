@@ -319,7 +319,7 @@ export async function generateDeviceListPDF(devices: Device[], filename: string 
     margin: { top: margin, right: margin, bottom: margin, left: margin },
     didDrawPage: (data) => {
       // Add page number at the bottom
-      const str = 'Page ' + doc.internal.getNumberOfPages()
+      const str = 'Page ' + doc.getNumberOfPages()
       doc.setFontSize(8)
       doc.text(str, pageWidth - margin - 10, pageHeight - 5)
     }
