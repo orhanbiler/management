@@ -439,6 +439,7 @@ export function InventoryDashboard() {
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
       const subject = `New Device PID Registration: ${device.pid_number} / ${device.serial_number}`
       
+      const expectedPid = `Z100A${device.serial_number.slice(-5)}`
       const body = `${today}\n\n` +
         `CSO Dean Rohan, CSO Diana Riley\n` +
         `Maryland State Police\n` +
@@ -447,10 +448,12 @@ export function InventoryDashboard() {
         `Subject: Request PID registration\n\n` +
         `To Whom It May Concern,\n\n` +
         `Could you please register the below PID for Cap Win connection. It will be utilized by authorized personnel.\n\n` +
+        `Agency ORI: MD0170500\n` +
         `Server: CAPWIN1\n` +
         `Domain: Z100\n` +
         `Serial Number: ${device.serial_number}\n` +
         `MDT ORI: MD0170501\n\n` +
+        `Note: PID Format: The PID is derived from the serial number by replacing the first 4 characters with the Domain "Z100" followed by the remaining serial numbers. (e.g., ${device.serial_number} becomes ${expectedPid})\n\n` +
         `If you should have any questions or concerns pertaining to this request, please contact me at 301-341-1055.\n\n` +
         `Sincerely,\n\n` +
         `Orhan Biler\n` +
@@ -582,7 +585,9 @@ export function InventoryDashboard() {
         `Subject: Request PID registration\n\n` +
         `To Whom It May Concern,\n\n` +
         `Could you please register the below PIDs for Cap Win connection. They will be utilized by authorized personnel.\n\n` +
+        `Agency ORI: MD0170500\n\n` +
         `${deviceList}\n` +
+        `Note: PID Format: Each PID is derived from the serial number by replacing the first 4 characters with the Domain "Z100" followed by the remaining serial numbers. For example, serial number 3ITTA14787 becomes Z100A14787.\n\n` +
         `If you should have any questions or concerns pertaining to this request, please contact me at 301-341-1055.\n\n` +
         `Sincerely,\n\n` +
         `Orhan Biler\n` +
@@ -712,6 +717,7 @@ export function InventoryDashboard() {
         `Subject: Request PID deactivation\n\n` +
         `To Whom It May Concern,\n\n` +
         `Could you please deactivate the below PID for Cap Win connection.\n\n` +
+        `Agency ORI: MD0170500\n` +
         `Server: CAPWIN1\n` +
         `Serial Number: ${device.serial_number}\n` +
         `PID: ${device.pid_number}\n` +
@@ -853,6 +859,7 @@ export function InventoryDashboard() {
         `Subject: Request PID deactivation\n\n` +
         `To Whom It May Concern,\n\n` +
         `Could you please deactivate the below PIDs for Cap Win connection.\n\n` +
+        `Agency ORI: MD0170500\n\n` +
         `${deviceList}\n` +
         `If you should have any questions or concerns pertaining to this request, please contact me at 301-341-1055.\n\n` +
         `Sincerely,\n\n` +
@@ -1573,7 +1580,19 @@ export function InventoryDashboard() {
                           <span className="text-[10px] text-red-500 font-semibold">MISMATCH</span>
                         </div>
                       ) : (
-                        device.pid_number
+                        <span className="flex items-center gap-1">
+                          {device.pid_number}
+                          {device.pid_registered && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                PID Registered
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{expected}</TableCell>
