@@ -1,9 +1,7 @@
 "use client"
 
-import { InventoryDashboard } from "@/components/inventory-dashboard"
-import { LoginForm } from "@/components/login-form"
+import { ProfilePage } from "@/components/profile-page"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
-import { ErrorBoundary } from "@/components/error-boundary"
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
@@ -16,9 +14,16 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { signOut } from "firebase/auth"
+import { auth } from "@/lib/firebase"
+import { LoginForm } from "@/components/login-form"
 
-function MainApp() {
-  const { user, signOut } = useAuth()
+function ProfileApp() {
+  const { user } = useAuth()
+
+  const handleSignOut = async () => {
+    if (auth) await signOut(auth)
+  }
 
   if (!user) {
     return <LoginForm />
@@ -26,7 +31,7 @@ function MainApp() {
 
   return (
     <SidebarProvider>
-      <AppSidebar userEmail={user.email} onSignOut={signOut} />
+      <AppSidebar userEmail={user.email} onSignOut={handleSignOut} />
       <SidebarInset>
         <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b px-4 bg-background transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2">
@@ -41,7 +46,7 @@ function MainApp() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Inventory Dashboard</BreadcrumbPage>
+                  <BreadcrumbPage>Profile</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -52,9 +57,7 @@ function MainApp() {
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min pt-6">
-            <ErrorBoundary>
-              <InventoryDashboard />
-            </ErrorBoundary>
+            <ProfilePage />
           </div>
         </div>
       </SidebarInset>
@@ -62,12 +65,11 @@ function MainApp() {
   )
 }
 
-export default function Home() {
+export default function Profile() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <MainApp />
-      </AuthProvider>
-    </ErrorBoundary>
+    <AuthProvider>
+      <ProfileApp />
+    </AuthProvider>
   )
 }
+

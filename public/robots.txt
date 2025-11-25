@@ -1,0 +1,13 @@
+# robots.txt for Device Manager
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://your-domain.com/sitemap.xml
+
+# Disallow admin and private routes
+Disallow: /api/
+Disallow: /profile
+Disallow: /signup-temp
+

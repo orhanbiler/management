@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { Device } from '@/types'
+import { secureLog } from '@/lib/security'
 
 interface PDFContent {
   subject: string
@@ -40,8 +41,8 @@ export async function generatePDF({ subject, body, warning, recipient }: PDFCont
     
     doc.addImage(bannerDataUrl, 'PNG', bannerMargin, yPosition, bannerWidth, bannerHeight)
     yPosition += bannerHeight + 12 // Reduced spacing from 15 to 12
-  } catch (error) {
-    console.error('Error loading banner image:', error)
+  } catch (error: unknown) {
+    secureLog('warn', 'Error loading banner image for PDF')
     // Continue without banner if image fails to load
     yPosition += 10
   }
@@ -256,8 +257,8 @@ export async function generateDeviceListPDF(devices: Device[], filename: string 
     
     doc.addImage(bannerDataUrl, 'PNG', margin, yPosition, bannerDisplayWidth, bannerHeight)
     yPosition += bannerHeight + 10
-  } catch (error) {
-    console.error('Error loading banner image:', error)
+  } catch (error: unknown) {
+    secureLog('warn', 'Error loading banner image for device list PDF')
     yPosition += 10
   }
 

@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { Device, DeviceFormData } from "@/types"
+import { secureLog, sanitizeAlphanumeric } from "@/lib/security"
 
 interface PidComparisonModalProps {
   open: boolean
@@ -37,8 +38,8 @@ export function PidComparisonModal({ open, onOpenChange, inventory, onAddDevices
   const [isProcessing, setIsProcessing] = useState(false)
   const [isAddingDevices, setIsAddingDevices] = useState(false)
 
-  // Normalize PID numbers for comparison
-  const normalizePid = (pid: string) => pid.trim().toUpperCase()
+  // Normalize and sanitize PID numbers for comparison
+  const normalizePid = (pid: string) => sanitizeAlphanumeric(pid.trim())
 
   // Parse PID list from textarea (supports newlines, commas, spaces)
   const parsedPids = useMemo(() => {
@@ -145,9 +146,10 @@ export function PidComparisonModal({ open, onOpenChange, inventory, onAddDevices
       setTimeout(() => {
         onOpenChange(false)
       }, 1000)
-    } catch (error: any) {
-      console.error("Error adding devices:", error)
-      toast.error(error?.message || "Failed to add devices. Please try again.")
+    } catch (error: unknown) {
+      secureLog("error", "Error adding devices")
+      const errorObj = error as { message?: string }
+      toast.error(errorObj?.message || "Failed to add devices. Please try again.")
     } finally {
       setIsAddingDevices(false)
     }

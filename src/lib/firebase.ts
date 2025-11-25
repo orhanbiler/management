@@ -19,8 +19,29 @@ let db: Firestore;
 let auth: Auth;
 let analytics: Analytics | undefined;
 
+// Validate required configuration
+function validateConfig(): boolean {
+  const requiredFields = ['apiKey', 'authDomain', 'projectId', 'appId'];
+  const missingFields = requiredFields.filter(
+    field => !firebaseConfig[field as keyof typeof firebaseConfig]
+  );
+  
+  if (missingFields.length > 0) {
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase configuration incomplete. Missing:', missingFields.join(', '));
+    }
+    return false;
+  }
+  return true;
+}
+
 // Initialize Firebase
 try {
+  if (!validateConfig()) {
+    throw new Error('Firebase configuration is incomplete');
+  }
+
   if (!getApps().length) {
     app = initializeApp(firebaseConfig);
   } else {
@@ -30,7 +51,10 @@ try {
   db = getFirestore(app);
   auth = getAuth(app);
   
-  console.log("Firebase initialized successfully with Project ID:", firebaseConfig.projectId);
+  // Only log in development
+  if (process.env.NODE_ENV === 'development') {
+    console.info("Firebase initialized successfully");
+  }
 
   // Analytics only runs on the client side
   if (typeof window !== "undefined") {
@@ -38,11 +62,16 @@ try {
       if (supported) {
         analytics = getAnalytics(app);
       }
-    }).catch(err => console.warn("Analytics support check failed", err));
+    }).catch(() => {
+      // Silently fail - analytics is optional
+    });
   }
 
 } catch (error) {
-  console.error("Critical Firebase Initialization Error:", error);
+  // Only log detailed error in development
+  if (process.env.NODE_ENV === 'development') {
+    console.error("Firebase Initialization Error:", error);
+  }
   // Re-throw to make it visible
   throw error;
 }

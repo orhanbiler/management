@@ -31,9 +31,70 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
+import { FancySwitch } from "@/components/ui/animated-switch"
 import { calculateExpectedPid, isPidMismatch } from "@/lib/utils"
-import { AlertTriangle, Loader2 } from "lucide-react"
+import { sanitizeAlphanumeric, sanitizeInput, secureLog } from "@/lib/security"
+import { AlertTriangle, Loader2, Copy, Check } from "lucide-react"
+
+// Copyable Input Component with touch/click to copy
+function CopyableInput({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    if (!value) return
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea")
+      textArea.value = value
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textArea)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+  }
+
+  return (
+    <div
+      onClick={handleCopy}
+      className={`
+        relative flex h-9 w-full items-center justify-between rounded-md border px-3 py-1
+        bg-muted text-muted-foreground font-mono text-sm
+        cursor-pointer select-none
+        transition-all duration-200 ease-out
+        hover:bg-muted/80 hover:border-primary/50
+        active:scale-[0.99]
+        ${copied ? "border-emerald-500 bg-emerald-500/10" : ""}
+      `}
+    >
+      <span className={`transition-opacity duration-200 ${copied ? "opacity-70" : ""}`}>
+        {value || "—"}
+      </span>
+      <span className={`
+        flex items-center gap-1 text-xs
+        transition-all duration-300 ease-out
+        ${copied ? "text-emerald-500" : "text-muted-foreground/60"}
+      `}>
+        {copied ? (
+          <>
+            <Check className="h-3.5 w-3.5 animate-[scale-in_0.2s_ease-out]" />
+            <span className="hidden sm:inline">Copied!</span>
+          </>
+        ) : (
+          <>
+            <Copy className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Tap to copy</span>
+          </>
+        )}
+      </span>
+    </div>
+  )
+}
 
 const formSchema = z.object({
   serial_number: z.string().optional(),
@@ -205,9 +266,9 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
       })
       // Only close modal if save was successful (no error thrown)
       onOpenChange(false)
-    } catch (error) {
+    } catch (error: unknown) {
       // Error handling is done in onSave, just prevent modal from closing
-      console.error("Form submission error:", error)
+      secureLog("error", "Form submission error")
     } finally {
       setIsSubmitting(false)
     }
@@ -257,15 +318,11 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
                 )}
               />
 
-              {/* Expected PID (Read Only) */}
+              {/* Expected PID (Read Only, Click to Copy) */}
               <FormItem>
                 <FormLabel className="text-muted-foreground">Expected PID (Auto-calc)</FormLabel>
                 <FormControl>
-                  <Input 
-                    readOnly 
-                    value={expectedPid} 
-                    className="bg-muted text-muted-foreground font-mono" 
-                  />
+                  <CopyableInput value={expectedPid} />
                 </FormControl>
               </FormItem>
             </div>
@@ -375,76 +432,66 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* To Be Retired Checkbox */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* To Be Retired Switch */}
               <FormField
                 control={form.control}
                 name="to_be_retired"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-md border px-3 py-2.5 transition-colors hover:bg-muted/30">
+                    <FormLabel className="text-sm font-medium cursor-pointer">
+                      To Be Retired
+                    </FormLabel>
                     <FormControl>
-                      <Checkbox
+                      <FancySwitch
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        variant="warning"
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        To Be Retired
-                      </FormLabel>
-                      <FormDescription>
-                        Mark this device as scheduled for retirement
-                      </FormDescription>
-                    </div>
                   </FormItem>
                 )}
               />
 
-              {/* PID Registered Checkbox */}
+              {/* PID Registered Switch */}
               <FormField
                 control={form.control}
                 name="pid_registered"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-md border px-3 py-2.5 transition-colors hover:bg-muted/30">
+                    <FormLabel className="text-sm font-medium cursor-pointer">
+                      PID Registered
+                    </FormLabel>
                     <FormControl>
-                      <Checkbox
+                      <FancySwitch
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        variant="success"
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        PID Registered
-                      </FormLabel>
-                      <FormDescription>
-                        Mark if PID is registered in the system
-                      </FormDescription>
-                    </div>
                   </FormItem>
                 )}
               />
             </div>
 
-            {/* ORI Number - Only show for Desktop or Other */}
-            {(deviceType === "Desktop" || deviceType === "Other") && (
-              <FormField
-                control={form.control}
-                name="ori_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ORI Number</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g. MD1234567" 
-                        {...field} 
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            {/* ORI Number - Available for all device types */}
+            <FormField
+              control={form.control}
+              name="ori_number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ORI Number</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g. MD0170501" 
+                      {...field} 
+                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Officer */}
             <FormField

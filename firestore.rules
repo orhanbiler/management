@@ -1,0 +1,161 @@
+rules_version = '2';
+
+// Firestore Security Rules for Toughbook Tracker
+// Deploy these rules to Firebase Console > Firestore > Rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user email is verified
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+    
+    // Check if user has a specific domain (for organization-only access)
+    function hasValidDomain() {
+      let email = request.auth.token.email;
+      return email.matches('.*@cpd\\.md\\.gov$') || 
+             email.matches('.*@cheverlypolice\\.org$');
+    }
+    
+    // Validate that string fields don't contain scripts or dangerous content
+    function isValidString(value) {
+      return value is string && 
+             !value.matches('.*<script.*>.*') &&
+             !value.matches('.*javascript:.*') &&
+             value.size() <= 1000;
+    }
+    
+    // Validate serial number format
+    function isValidSerialNumber(value) {
+      return !value.matches('.*[<>"\'].*') &&
+             value.size() <= 50;
+    }
+    
+    // Validate device data
+    function isValidDevice(data) {
+      let validStatus = data.status in ['Assigned', 'Unassigned', 'Retired', 'Unknown'];
+      let validType = data.device_type in ['Toughbook', 'Laptop', 'Desktop', 'Other'];
+      let hasIdentifier = (data.serial_number != null && data.serial_number.size() > 0) ||
+                          (data.pid_number != null && data.pid_number.size() > 0);
+      
+      return validStatus && validType && hasIdentifier;
+    }
+    
+    // Prevent field tampering - ensure only allowed fields are present
+    function hasOnlyAllowedFields(data) {
+      let allowedFields = [
+        'serial_number', 'pid_number', 'asset_id', 'device_type',
+        'ori_number', 'status', 'to_be_retired', 'pid_registered',
+        'officer', 'assignment_date', 'notes', 'updated_at'
+      ];
+      return data.keys().hasOnly(allowedFields);
+    }
+    
+    // ============================================
+    // TOUGHBOOKS COLLECTION
+    // ============================================
+    match /toughbooks/{deviceId} {
+      
+      // Read: Only authenticated users
+      allow read: if isAuthenticated();
+      
+      // Create: Only authenticated users with valid data
+      allow create: if isAuthenticated() 
+                   && hasOnlyAllowedFields(request.resource.data)
+                   && isValidDevice(request.resource.data);
+      
+      // Update: Only authenticated users with valid data
+      // Prevent changing the document ID
+      allow update: if isAuthenticated()
+                   && hasOnlyAllowedFields(request.resource.data)
+                   && isValidDevice(request.resource.data);
+      
+      // Delete: Only authenticated users 
+      // Consider restricting this to admins only in production
+      allow delete: if isAuthenticated();
+    }
+    
+    // ============================================
+    // USERS COLLECTION (if needed for roles)
+    // ============================================
+    match /users/{userId} {
+      // Users can only read their own data
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Allow users to create their own user document during signup
+      // Must match their auth UID, have role "user", and include required fields
+      allow create: if isAuthenticated()
+                   && request.auth.uid == userId
+                   && request.resource.data.role == "user"
+                   && request.resource.data.email is string
+                   && request.resource.data.createdAt is string
+                   && request.resource.data.keys().hasOnly(['email', 'role', 'createdAt']);
+      
+      // Only the user can update their own non-sensitive fields
+      // Prevent role changes (only admins should change roles via backend)
+      allow update: if isAuthenticated() 
+                   && request.auth.uid == userId
+                   && !request.resource.data.keys().hasAny(['role']);
+      
+      // No delete from client
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // SETTINGS COLLECTION
+    // ============================================
+    match /settings/{settingId} {
+      // Allow anyone (including unauthenticated) to read settings
+      // This is needed so the signup page and login page can check if signup is enabled
+      allow read: if true;
+      
+      // Helper function to check if user is admin
+      function isAdmin() {
+        return isAuthenticated() &&
+               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      }
+      
+      // Only admins can update settings
+      allow update: if isAdmin();
+      
+      // Only admins can create settings
+      allow create: if isAdmin();
+      
+      // No delete from client
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // AUDIT LOG COLLECTION (optional)
+    // ============================================
+    match /audit_logs/{logId} {
+      // No direct reads from clients - use Cloud Functions
+      allow read: if false;
+      
+      // Allow authenticated users to write audit logs
+      allow create: if isAuthenticated()
+                   && request.resource.data.userId == request.auth.uid
+                   && request.resource.data.timestamp == request.time;
+      
+      // No updates or deletes
+      allow update, delete: if false;
+    }
+    
+    // ============================================
+    // DENY ALL OTHER COLLECTIONS
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

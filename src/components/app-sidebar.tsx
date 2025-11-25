@@ -1,7 +1,8 @@
 "use client"
 
+import { useRouter, usePathname } from "next/navigation"
+import Image from "next/image"
 import { 
-  Laptop, 
   LayoutDashboard, 
   Users, 
   Settings, 
@@ -37,17 +38,26 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ userEmail, onSignOut, ...props }: AppSidebarProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="Toughbook Tracker" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
-                <Laptop className="size-4" />
+            <SidebarMenuButton size="lg" tooltip="Device Manager" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-0">
+              <div className="flex aspect-square size-10 items-center justify-center rounded-lg shrink-0 overflow-hidden group-data-[collapsible=icon]:size-8">
+                <Image 
+                  src="/logo.png" 
+                  alt="Device Manager Logo" 
+                  width={40} 
+                  height={40}
+                  className="object-contain group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8"
+                />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-semibold">Toughbook Tracker</span>
+                <span className="truncate font-semibold">Device Manager</span>
                 <span className="truncate text-xs">Cheverly PD</span>
               </div>
             </SidebarMenuButton>
@@ -60,7 +70,11 @@ export function AppSidebar({ userEmail, onSignOut, ...props }: AppSidebarProps) 
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton isActive tooltip="Inventory">
+                <SidebarMenuButton 
+                  isActive={pathname === "/"} 
+                  onClick={() => router.push("/")}
+                  tooltip="Inventory"
+                >
                   <LayoutDashboard />
                   <span className="group-data-[collapsible=icon]:hidden">Inventory</span>
                 </SidebarMenuButton>
@@ -119,6 +133,10 @@ export function AppSidebar({ userEmail, onSignOut, ...props }: AppSidebarProps) 
                 side="top"
                 className="w-[--radix-popper-anchor-width]"
               >
+                <DropdownMenuItem onClick={() => router.push("/profile")}>
+                  <User2 className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={onSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign out</span>

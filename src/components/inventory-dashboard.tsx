@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { 
   collection, 
   onSnapshot, 
@@ -9,7 +9,8 @@ import {
   doc, 
   query, 
   orderBy,
-  writeBatch
+  writeBatch,
+  FirestoreError
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Device, DeviceFormData } from "@/types"
@@ -38,6 +39,15 @@ import { PidComparisonModal } from "@/components/pid-comparison-modal"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -65,10 +75,17 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Building2
 } from "lucide-react"
 import { toast } from "sonner"
 import { generatePDF, generateDeviceListPDF } from "@/lib/pdf-generator"
+import { 
+  getFirebaseErrorMessage, 
+  secureLog, 
+  sanitizeInput,
+  sanitizeAlphanumeric 
+} from "@/lib/security"
 
 export function InventoryDashboard() {
   const [inventory, setInventory] = useState<Device[]>([])
@@ -93,6 +110,10 @@ export function InventoryDashboard() {
   
   const [isPidComparisonModalOpen, setIsPidComparisonModalOpen] = useState(false)
   
+  // Bulk ORI Edit State
+  const [isBulkOriEditOpen, setIsBulkOriEditOpen] = useState(false)
+  const [bulkOriValue, setBulkOriValue] = useState("")
+  
   // Bulk Selection State
   const [selectedDevices, setSelectedDevices] = useState<Set<string>>(new Set())
   
@@ -102,8 +123,8 @@ export function InventoryDashboard() {
   // Data Fetching
   useEffect(() => {
     if (!db) {
-      // Mock Data Mode
-      console.warn("No Firestore connection. Using mock data.")
+      // Mock Data Mode - for development/testing only
+      secureLog("warn", "No Firestore connection. Using mock data.")
       const mockData: Device[] = [
         { id: '1', serial_number: '3ITTA13927', pid_number: 'Z100A13927', asset_id: 'TB-1', device_type: 'Toughbook', status: 'Assigned', officer: 'SGT. BILER', assignment_date: '2024-07-31', notes: 'Test unit' },
         { id: '2', serial_number: '4GTTA99999', pid_number: 'OLD_PID_123', asset_id: 'TB-2', device_type: 'Toughbook', status: 'Unassigned', officer: '', assignment_date: '', notes: 'Legacy PID mismatch example' },
@@ -115,26 +136,19 @@ export function InventoryDashboard() {
 
     const q = query(collection(db, "toughbooks"), orderBy("serial_number"))
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const data = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       })) as Device[]
       setInventory(data)
       setIsLoading(false)
-    }, (error: any) => {
-      console.error("Error fetching data:", error)
+    }, (error: FirestoreError) => {
+      secureLog("error", "Error fetching inventory data", { code: error.code })
       setIsLoading(false)
       
-      // Handle specific Firestore errors
-      if (error?.code === 'permission-denied') {
-        toast.error("Permission denied. Please check your Firebase rules.")
-      } else if (error?.code === 'unavailable') {
-        toast.error("Firestore service unavailable. Please check your connection.")
-      } else if (error?.code === 'failed-precondition') {
-        toast.error("Database error. Please refresh the page.")
-      } else {
-        toast.error("Failed to sync data from Firestore")
-      }
+      // Use secure error messaging
+      const errorMessage = getFirebaseErrorMessage(error)
+      toast.error(errorMessage)
     })
 
     return () => unsubscribe()
@@ -328,20 +342,19 @@ export function InventoryDashboard() {
       }
       setIsDeviceModalOpen(false)
       setEditingDevice(null)
-    } catch (error: any) {
-      console.error("Save error:", error)
+    } catch (error: unknown) {
+      secureLog("error", "Save device error", { 
+        isEdit: !!editingDevice 
+      })
       
-      // Handle specific Firebase errors
-      if (error?.code === 'permission-denied') {
-        toast.error("Permission denied. Please check your Firebase rules.")
-      } else if (error?.code === 'unavailable') {
-        toast.error("Service temporarily unavailable. Please try again.")
-      } else if (error?.code === 'failed-precondition') {
-        toast.error("Operation failed. Please refresh and try again.")
-      } else if (error?.message) {
-        toast.error(`Error: ${error.message}`)
+      // Use secure error messaging
+      const firebaseError = error as { code?: string; message?: string }
+      if (firebaseError?.message && !firebaseError?.code) {
+        // Custom validation error
+        toast.error(firebaseError.message)
       } else {
-        toast.error("Failed to save device. Please try again.")
+        const errorMessage = getFirebaseErrorMessage(firebaseError)
+        toast.error(errorMessage)
       }
     }
   }
@@ -405,9 +418,11 @@ export function InventoryDashboard() {
         setInventory(prev => [...prev, ...newDevices])
         toast.success(`Successfully added ${newDevices.length} device(s)`)
       }
-    } catch (error: any) {
-      console.error("Bulk add error:", error)
-      toast.error(`Failed to add devices: ${error?.message || "Unknown error"}`)
+    } catch (error: unknown) {
+      secureLog("error", "Bulk add error")
+      const firebaseError = error as { code?: string; message?: string }
+      const errorMessage = getFirebaseErrorMessage(firebaseError)
+      toast.error(`Failed to add devices: ${errorMessage}`)
       throw error
     }
   }
@@ -451,8 +466,8 @@ export function InventoryDashboard() {
         newSet.delete(`capwin-${device.id}`)
         return newSet
       })
-    } catch (error: any) {
-      console.error("Error generating CAPWIN email:", error)
+    } catch (error: unknown) {
+      secureLog("error", "Error generating CAPWIN email")
       toast.error("Failed to generate email. Please try again.")
       setLoadingActions(prev => {
         const newSet = new Set(prev)
@@ -498,8 +513,8 @@ export function InventoryDashboard() {
         newSet.delete(`officer-${device.id}`)
         return newSet
       })
-    } catch (error: any) {
-      console.error("Error generating officer email:", error)
+    } catch (error: unknown) {
+      secureLog("error", "Error generating officer email")
       toast.error("Failed to generate email. Please try again.")
       setLoadingActions(prev => {
         const newSet = new Set(prev)
@@ -583,8 +598,8 @@ export function InventoryDashboard() {
         newSet.delete('bulk-capwin')
         return newSet
       })
-    } catch (error: any) {
-      console.error("Error generating bulk CAPWIN email:", error)
+    } catch (error: unknown) {
+      secureLog("error", "Error generating bulk CAPWIN email")
       toast.error("Failed to generate email. Please try again.")
       setLoadingActions(prev => {
         const newSet = new Set(prev)
@@ -671,8 +686,8 @@ export function InventoryDashboard() {
         newSet.delete('bulk-officer')
         return newSet
       })
-    } catch (error: any) {
-      console.error("Error generating bulk officer email:", error)
+    } catch (error: unknown) {
+      secureLog("error", "Error generating bulk officer email")
       toast.error("Failed to generate email. Please try again.")
       setLoadingActions(prev => {
         const newSet = new Set(prev)
@@ -716,17 +731,97 @@ export function InventoryDashboard() {
       const filename = `pid_deactivation_${device.pid_number}_${device.serial_number}.pdf`
       await generatePDF({ subject, body, warning: "" }, filename)
       toast.success("Deactivation PDF downloaded successfully")
-    } catch (error: any) {
-      console.error("Error generating deactivation PDF:", error)
-      if (error?.message) {
-        toast.error(`Failed to generate PDF: ${error.message}`)
-      } else {
-        toast.error("Failed to generate PDF. Please try again.")
-      }
+    } catch (error: unknown) {
+      secureLog("error", "Error generating deactivation PDF")
+      const errorObj = error as { message?: string }
+      toast.error(errorObj?.message ? `Failed to generate PDF: ${errorObj.message}` : "Failed to generate PDF. Please try again.")
     } finally {
       setLoadingActions(prev => {
         const newSet = new Set(prev)
         newSet.delete(`deactivate-${device.id}`)
+        return newSet
+      })
+    }
+  }
+
+  // Bulk ORI Number Edit
+  const handleBulkOriEdit = async () => {
+    if (selectedDevices.size === 0) {
+      toast.error("Please select at least one device")
+      return
+    }
+
+    setIsBulkOriEditOpen(true)
+  }
+
+  const handleBulkOriSave = async () => {
+    if (selectedDevices.size === 0) {
+      toast.error("Please select at least one device")
+      return
+    }
+
+    if (!db) {
+      toast.error("Database not initialized")
+      return
+    }
+
+    setLoadingActions(prev => new Set(prev).add('bulk-ori'))
+
+    try {
+      const selectedDeviceList = filteredInventory.filter(d => selectedDevices.has(d.id))
+      
+      if (selectedDeviceList.length === 0) {
+        toast.error("No valid devices selected")
+        setLoadingActions(prev => {
+          const newSet = new Set(prev)
+          newSet.delete('bulk-ori')
+          return newSet
+        })
+        return
+      }
+
+      // Sanitize ORI number - allow alphanumeric and keep it uppercase
+      const trimmedValue = bulkOriValue.trim()
+      const sanitizedOri = trimmedValue ? sanitizeAlphanumeric(trimmedValue.toUpperCase()) : ""
+
+      console.log("Bulk ORI Update:", {
+        input: bulkOriValue,
+        sanitized: sanitizedOri,
+        deviceCount: selectedDeviceList.length,
+        deviceIds: selectedDeviceList.map(d => d.id)
+      })
+
+      // Use batch write for efficiency
+      const batch = writeBatch(db)
+      let updateCount = 0
+
+      selectedDeviceList.forEach(device => {
+        const deviceRef = doc(db, "toughbooks", device.id)
+        batch.update(deviceRef, {
+          ori_number: sanitizedOri || "",
+          updated_at: new Date().toISOString()
+        })
+        updateCount++
+      })
+
+      await batch.commit()
+      
+      toast.success(`Successfully updated ORI number "${sanitizedOri}" for ${updateCount} device(s)`)
+      setIsBulkOriEditOpen(false)
+      setBulkOriValue("")
+      setSelectedDevices(new Set())
+      
+      secureLog("info", `Bulk ORI update: ${updateCount} devices updated with ORI: ${sanitizedOri}`)
+    } catch (error: unknown) {
+      console.error("Bulk ORI update error:", error)
+      secureLog("error", "Error updating bulk ORI", { error: String(error) })
+      const errorObj = error as { message?: string; code?: string }
+      const errorMessage = getFirebaseErrorMessage(errorObj)
+      toast.error(errorMessage || `Failed to update ORI numbers: ${errorObj?.message || "Unknown error"}`)
+    } finally {
+      setLoadingActions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete('bulk-ori')
         return newSet
       })
     }
@@ -774,13 +869,10 @@ export function InventoryDashboard() {
       const filename = `bulk_pid_deactivation_${selectedDeviceList.length}_devices.pdf`
       await generatePDF({ subject, body, warning: "" }, filename)
       toast.success(`Deactivation PDF downloaded for ${selectedDeviceList.length} device(s)`)
-    } catch (error: any) {
-      console.error("Error generating bulk deactivation PDF:", error)
-      if (error?.message) {
-        toast.error(`Failed to generate PDF: ${error.message}`)
-      } else {
-        toast.error("Failed to generate PDF. Please try again.")
-      }
+    } catch (error: unknown) {
+      secureLog("error", "Error generating bulk deactivation PDF")
+      const errorObj = error as { message?: string }
+      toast.error(errorObj?.message ? `Failed to generate PDF: ${errorObj.message}` : "Failed to generate PDF. Please try again.")
     } finally {
       setLoadingActions(prev => {
         const newSet = new Set(prev)
@@ -801,8 +893,8 @@ export function InventoryDashboard() {
       toast.info("Generating PDF...")
       await generateDeviceListPDF(devicesToExport)
       toast.success("Inventory list exported successfully")
-    } catch (error) {
-      console.error("Export error:", error)
+    } catch (error: unknown) {
+      secureLog("error", "Export error")
       toast.error("Failed to export inventory list")
     }
   }
@@ -1112,126 +1204,217 @@ export function InventoryDashboard() {
       </div>
 
       {/* Controls */}
-      <Card>
-        <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="relative w-full md:w-1/3">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search SN, PID, or Officer..." 
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          {/* Search and Filters Row */}
+          <div className="p-4 space-y-4">
+            {/* Top Row: Search + Action Buttons */}
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Search Input */}
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search by Serial Number, PID, Officer, or Asset ID..." 
+                  className="pl-10 h-11 bg-muted/30 border-muted-foreground/20 focus:bg-background transition-colors"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              {/* Action Buttons - Always visible */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button 
+                  variant="outline" 
+                  size="default"
+                  className="h-11"
+                  onClick={() => setIsPidComparisonModalOpen(true)}
+                >
+                  <FileSearch className="mr-2 h-4 w-4" /> 
+                  <span className="hidden sm:inline">Compare PIDs</span>
+                  <span className="sm:hidden">Compare</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="default"
+                  className="h-11"
+                  onClick={handleExportList}
+                >
+                  <FileDown className="mr-2 h-4 w-4" /> 
+                  <span className="hidden sm:inline">Export PDF</span>
+                  <span className="sm:hidden">Export</span>
+                </Button>
+                <Button 
+                  size="default"
+                  className="h-11"
+                  onClick={handleAddNew}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> 
+                  <span className="hidden sm:inline">Add Device</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Filter className="h-4 w-4" />
+                <span className="font-medium">Filters:</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-3 flex-1">
+                {/* Status Filter */}
+                <div className="flex items-center gap-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[140px] sm:w-[160px] h-9 bg-muted/30 border-muted-foreground/20">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Statuses</SelectItem>
+                      <SelectItem value="Assigned">Assigned</SelectItem>
+                      <SelectItem value="Unassigned">Unassigned</SelectItem>
+                      <SelectItem value="Unknown">Unknown</SelectItem>
+                      <SelectItem value="Retired">Retired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* PID Registered Filter */}
+                <div className="flex items-center gap-2">
+                  <Select value={pidRegisteredFilter} onValueChange={setPidRegisteredFilter}>
+                    <SelectTrigger className="w-[140px] sm:w-[160px] h-9 bg-muted/30 border-muted-foreground/20">
+                      <SelectValue placeholder="PID Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All PID Status</SelectItem>
+                      <SelectItem value="Registered">Registered</SelectItem>
+                      <SelectItem value="Not Registered">Not Registered</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Active filters indicator */}
+                {(statusFilter !== "All" || pidRegisteredFilter !== "All") && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-9 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setStatusFilter("All")
+                      setPidRegisteredFilter("All")
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Status:</span>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All Statuses</SelectItem>
-                  <SelectItem value="Assigned">Assigned</SelectItem>
-                  <SelectItem value="Unassigned">Unassigned</SelectItem>
-                  <SelectItem value="Unknown">Unknown</SelectItem>
-                  <SelectItem value="Retired">Retired</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">PID Registered:</span>
-              <Select value={pidRegisteredFilter} onValueChange={setPidRegisteredFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Registered">Registered</SelectItem>
-                  <SelectItem value="Not Registered">Not Registered</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedDevices.size > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-md border border-primary/20">
-                <span className="text-sm font-medium text-primary">{selectedDevices.size} selected</span>
-                <div className="flex gap-1">
+
+          {/* Bulk Selection Actions - Slide in when items selected */}
+          {selectedDevices.size > 0 && (
+            <div className="px-4 py-3 bg-primary/5 border-t border-primary/10 animate-fade-in">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center">
+                    <span className="text-sm font-bold text-primary">{selectedDevices.size}</span>
+                  </div>
+                  <span className="text-sm font-medium">device{selectedDevices.size !== 1 ? 's' : ''} selected</span>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 flex-1">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
                         variant="outline" 
                         size="sm" 
+                        className="h-8"
                         onClick={handleBulkCapwinEmail}
                         disabled={loadingActions.has('bulk-capwin')}
                       >
                         {loadingActions.has('bulk-capwin') ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                         ) : (
-                          <FileSignature className="h-3 w-3 mr-1" />
+                          <FileSignature className="h-3.5 w-3.5 mr-1.5" />
                         )}
-                        Bulk CAPWIN
+                        CAPWIN Email
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Generate CAPWIN email for selected devices</TooltipContent>
+                    <TooltipContent>Generate CAPWIN registration email</TooltipContent>
                   </Tooltip>
+                  
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
                         variant="outline" 
-                        size="sm" 
+                        size="sm"
+                        className="h-8"
                         onClick={handleBulkOfficerEmail}
                         disabled={loadingActions.has('bulk-officer')}
                       >
                         {loadingActions.has('bulk-officer') ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                         ) : (
-                          <Send className="h-3 w-3 mr-1" />
+                          <Send className="h-3.5 w-3.5 mr-1.5" />
                         )}
-                        Bulk Notify
+                        Notify Officers
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Generate notification emails for selected devices</TooltipContent>
+                    <TooltipContent>Send notification to assigned officers</TooltipContent>
                   </Tooltip>
+                  
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button 
                         variant="outline" 
-                        size="sm" 
+                        size="sm"
+                        className="h-8"
                         onClick={handleBulkDeactivationPDF}
                         disabled={loadingActions.has('bulk-deactivate')}
                       >
                         {loadingActions.has('bulk-deactivate') ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                         ) : (
-                          <FileX className="h-3 w-3 mr-1" />
+                          <FileX className="h-3.5 w-3.5 mr-1.5" />
                         )}
-                        Bulk Deactivate PDF
+                        Deactivation PDF
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Generate deactivation PDF for selected devices</TooltipContent>
+                    <TooltipContent>Generate PID deactivation request</TooltipContent>
                   </Tooltip>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedDevices(new Set())}>
-                    Clear
-                  </Button>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="h-8"
+                        onClick={handleBulkOriEdit}
+                        disabled={loadingActions.has('bulk-ori')}
+                      >
+                        {loadingActions.has('bulk-ori') ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Building2 className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Edit ORI Number
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Bulk edit ORI number for selected devices</TooltipContent>
+                  </Tooltip>
                 </div>
+                
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 text-muted-foreground"
+                  onClick={() => setSelectedDevices(new Set())}
+                >
+                  Clear selection
+                </Button>
               </div>
-            )}
-            <Button 
-              variant="outline" 
-              onClick={() => setIsPidComparisonModalOpen(true)}
-            >
-              <FileSearch className="mr-2 h-4 w-4" /> Compare PIDs
-            </Button>
-            <Button variant="outline" onClick={handleExportList}>
-              <FileDown className="mr-2 h-4 w-4" /> Export PDF
-            </Button>
-            <Button onClick={handleAddNew}>
-              <Plus className="mr-2 h-4 w-4" /> Add Device
-            </Button>
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1374,7 +1557,7 @@ export function InventoryDashboard() {
                       <Badge variant="outline">{device.device_type || "Toughbook"}</Badge>
                     </TableCell>
                     <TableCell className="font-mono text-sm">
-                      {(device.device_type === "Desktop" || device.device_type === "Other") && device.ori_number ? (
+                      {device.ori_number ? (
                         device.ori_number
                       ) : (
                         <span className="text-muted-foreground italic">—</span>
@@ -1525,6 +1708,68 @@ export function InventoryDashboard() {
         inventory={inventory}
         onAddDevices={handleBulkAddDevices}
       />
+
+      {/* Bulk ORI Edit Dialog */}
+      <Dialog open={isBulkOriEditOpen} onOpenChange={setIsBulkOriEditOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Bulk Edit ORI Number</DialogTitle>
+            <DialogDescription>
+              Update ORI number for {selectedDevices.size} selected device{selectedDevices.size !== 1 ? 's' : ''}. 
+              Leave empty to clear ORI number.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="bulk-ori">ORI Number</Label>
+              <Input
+                id="bulk-ori"
+                placeholder="e.g., MD0170501"
+                value={bulkOriValue}
+                onChange={(e) => setBulkOriValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleBulkOriSave()
+                  }
+                }}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                This will update the ORI number for all selected devices.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsBulkOriEditOpen(false)
+                setBulkOriValue("")
+              }}
+              disabled={loadingActions.has('bulk-ori')}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkOriSave}
+              disabled={loadingActions.has('bulk-ori')}
+            >
+              {loadingActions.has('bulk-ori') ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Update {selectedDevices.size} Device{selectedDevices.size !== 1 ? 's' : ''}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

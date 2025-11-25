@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle, Copy, Mail, FileDown, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { generatePDF } from "@/lib/pdf-generator"
+import { secureLog } from "@/lib/security"
 
 interface EmailModalProps {
   open: boolean
@@ -58,13 +59,10 @@ export function EmailModal({ open, onOpenChange, subject, body, warning, recipie
       const filename = subject.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf'
       await generatePDF({ subject, body, warning }, filename)
       toast.success("PDF downloaded successfully")
-    } catch (error: any) {
-      console.error("Error generating PDF:", error)
-      if (error?.message) {
-        toast.error(`Failed to generate PDF: ${error.message}`)
-      } else {
-        toast.error("Failed to generate PDF. Please try again.")
-      }
+    } catch (error: unknown) {
+      secureLog("error", "Error generating PDF")
+      const errorObj = error as { message?: string }
+      toast.error(errorObj?.message ? `Failed to generate PDF: ${errorObj.message}` : "Failed to generate PDF. Please try again.")
     } finally {
       setIsGeneratingPDF(false)
     }
