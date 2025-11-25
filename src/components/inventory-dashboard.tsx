@@ -76,7 +76,9 @@ import {
   XCircle,
   Clock,
   TrendingUp,
-  Building2
+  Building2,
+  ShieldCheck,
+  ShieldX
 } from "lucide-react"
 import { toast } from "sonner"
 import { generatePDF, generateDeviceListPDF } from "@/lib/pdf-generator"
@@ -922,6 +924,8 @@ export function InventoryDashboard() {
       Other: inventory.filter(d => d.device_type === "Other").length,
     }
     const toBeRetired = inventory.filter(d => d.to_be_retired === true).length
+    const pidRegistered = inventory.filter(d => d.pid_registered === true).length
+    const pidNotRegistered = inventory.filter(d => d.pid_registered !== true).length
     const pidMismatches = inventory.filter(d => {
       if (!d.serial_number || !d.pid_number) return false
       return isPidMismatch(d.serial_number, d.pid_number)
@@ -947,6 +951,8 @@ export function InventoryDashboard() {
       byStatus,
       byType,
       toBeRetired,
+      pidRegistered,
+      pidNotRegistered,
       pidMismatches,
       withoutSerial,
       withoutPid,
@@ -1022,10 +1028,44 @@ export function InventoryDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* PID Registered */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">PID Registered</p>
+                <p className="text-3xl font-bold mt-2">{stats.pidRegistered}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats.total > 0 ? Math.round((stats.pidRegistered / stats.total) * 100) : 0}% registered
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center">
+                <ShieldCheck className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* PID Not Registered */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">PID Not Registered</p>
+                <p className="text-3xl font-bold mt-2">{stats.pidNotRegistered}</p>
+                <p className="text-xs text-muted-foreground mt-1">Pending registration</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                <ShieldX className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Detailed Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Status Breakdown */}
         <Card>
           <CardContent className="p-6">
@@ -1153,6 +1193,63 @@ export function InventoryDashboard() {
                   </div>
                   <span className="text-sm font-medium w-8 text-right">{stats.byType.Other}</span>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* PID Registration Status */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold">PID Registration Status</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                  <span className="text-sm">Registered</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-600 rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.pidRegistered / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.pidRegistered}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldX className="h-4 w-4 text-red-600" />
+                  <span className="text-sm">Not Registered</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-600 rounded-full" 
+                      style={{ width: `${stats.total > 0 ? (stats.pidNotRegistered / stats.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-8 text-right">{stats.pidNotRegistered}</span>
+                </div>
+              </div>
+            </div>
+            {/* Registration Progress */}
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Registration Progress</span>
+                <span className="font-semibold text-emerald-600">
+                  {stats.total > 0 ? Math.round((stats.pidRegistered / stats.total) * 100) : 0}%
+                </span>
+              </div>
+              <div className="mt-2 h-3 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500" 
+                  style={{ width: `${stats.total > 0 ? (stats.pidRegistered / stats.total) * 100 : 0}%` }}
+                />
               </div>
             </div>
           </CardContent>
