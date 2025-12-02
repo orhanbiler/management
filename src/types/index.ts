@@ -9,6 +9,9 @@ export type DeviceStatus = "Assigned" | "Unassigned" | "Retired" | "Unknown";
 // Device type options
 export type DeviceType = "Toughbook" | "Laptop" | "Desktop" | "Other";
 
+// Operating system options
+export type OperatingSystem = "Windows 11" | "Windows 10" | "Windows 8" | "Windows 7";
+
 /**
  * Device entity representing inventory items
  * All fields are carefully validated before storage
@@ -24,6 +27,8 @@ export interface Device {
   asset_id: string;
   /** Type of device */
   device_type: DeviceType;
+  /** Operating system installed */
+  operating_system?: OperatingSystem;
   /** ORI Number (for Desktop/Other types) */
   ori_number?: string;
   /** Current assignment status */
@@ -32,6 +37,16 @@ export interface Device {
   to_be_retired?: boolean;
   /** Flag indicating PID is registered in the system */
   pid_registered?: boolean;
+  
+  // Retirement process checklist
+  /** Step 1: PID deactivated from MSP */
+  retirement_msp_deactivated?: boolean;
+  /** Step 2: PID deactivated from CAPWIN */
+  retirement_capwin_deactivated?: boolean;
+  /** Step 3: Disconnected from domain controller */
+  retirement_domain_disconnected?: boolean;
+  /** Step 4: Device formatted */
+  retirement_formatted?: boolean;
   /** Name of assigned officer/user */
   officer: string;
   /** Date device was assigned (ISO format) */

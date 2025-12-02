@@ -53,7 +53,9 @@ service cloud.firestore {
     function hasOnlyAllowedFields(data) {
       let allowedFields = [
         'serial_number', 'pid_number', 'asset_id', 'device_type',
-        'ori_number', 'status', 'to_be_retired', 'pid_registered',
+        'operating_system', 'ori_number', 'status', 'to_be_retired', 'pid_registered',
+        'retirement_msp_deactivated', 'retirement_capwin_deactivated',
+        'retirement_domain_disconnected', 'retirement_formatted',
         'officer', 'assignment_date', 'notes', 'updated_at'
       ];
       return data.keys().hasOnly(allowedFields);

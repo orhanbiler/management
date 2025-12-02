@@ -237,6 +237,7 @@ export async function generateDeviceListPDF(devices: Device[], filename: string 
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const margin = 10
+  const contentWidth = pageWidth - (margin * 2) // Banner width = table width
   let yPosition = margin
 
   // Load and add banner image
@@ -250,12 +251,10 @@ export async function generateDeviceListPDF(devices: Device[], filename: string 
     })
     
     // Calculate banner dimensions to fit width while maintaining aspect ratio
-    // Use slightly less than full width for margins
-    const bannerDisplayWidth = pageWidth - (margin * 2)
     const bannerAspectRatio = bannerImg.width / bannerImg.height
-    const bannerHeight = bannerDisplayWidth / bannerAspectRatio
+    const bannerHeight = contentWidth / bannerAspectRatio
     
-    doc.addImage(bannerDataUrl, 'PNG', margin, yPosition, bannerDisplayWidth, bannerHeight)
+    doc.addImage(bannerDataUrl, 'PNG', margin, yPosition, contentWidth, bannerHeight)
     yPosition += bannerHeight + 10
   } catch (error: unknown) {
     secureLog('warn', 'Error loading banner image for device list PDF')
@@ -280,24 +279,77 @@ export async function generateDeviceListPDF(devices: Device[], filename: string 
   
   yPosition += 8
 
+  // Calculate statistics for pie charts
+  const stats = {
+    byOS: {
+      'Windows 11': devices.filter(d => d.operating_system === 'Windows 11' || !d.operating_system).length,
+      'Windows 10': devices.filter(d => d.operating_system === 'Windows 10').length,
+      'Windows 8': devices.filter(d => d.operating_system === 'Windows 8').length,
+      'Windows 7': devices.filter(d => d.operating_system === 'Windows 7').length,
+    },
+    pidRegistered: devices.filter(d => d.pid_registered === true).length,
+    pidNotRegistered: devices.filter(d => d.pid_registered !== true).length,
+    byStatus: {
+      Assigned: devices.filter(d => d.status === 'Assigned').length,
+      Unassigned: devices.filter(d => d.status === 'Unassigned').length,
+      Retired: devices.filter(d => d.status === 'Retired').length,
+      Unknown: devices.filter(d => d.status === 'Unknown').length,
+    },
+    total: devices.length
+  }
+
+  // Draw Pie Charts Section
+  const chartRadius = 18
+  const chartY = yPosition + chartRadius + 5
+  const chartSpacing = contentWidth / 3
+  
+  // Chart 1: OS Distribution (left)
+  const osChart1X = margin + chartSpacing / 2
+  drawPieChart(doc, osChart1X, chartY, chartRadius, [
+    { value: stats.byOS['Windows 11'], color: [14, 165, 233], label: 'Win 11' },
+    { value: stats.byOS['Windows 10'], color: [139, 92, 246], label: 'Win 10' },
+    { value: stats.byOS['Windows 8'], color: [245, 158, 11], label: 'Win 8' },
+    { value: stats.byOS['Windows 7'], color: [239, 68, 68], label: 'Win 7' },
+  ], 'OS Distribution')
+
+  // Chart 2: PID Registration (center)
+  const pidChartX = margin + chartSpacing * 1.5
+  drawPieChart(doc, pidChartX, chartY, chartRadius, [
+    { value: stats.pidRegistered, color: [16, 185, 129], label: 'Registered' },
+    { value: stats.pidNotRegistered, color: [239, 68, 68], label: 'Not Reg.' },
+  ], 'PID Status')
+
+  // Chart 3: Assignment Status (right)
+  const statusChartX = margin + chartSpacing * 2.5
+  drawPieChart(doc, statusChartX, chartY, chartRadius, [
+    { value: stats.byStatus.Assigned, color: [34, 197, 94], label: 'Assigned' },
+    { value: stats.byStatus.Unassigned, color: [59, 130, 246], label: 'Unassigned' },
+    { value: stats.byStatus.Retired, color: [107, 114, 128], label: 'Retired' },
+    { value: stats.byStatus.Unknown, color: [245, 158, 11], label: 'Unknown' },
+  ], 'Status')
+
+  yPosition = chartY + chartRadius + 20
+
   // Prepare table data
-  const tableHead = [['SN', 'PID', 'Asset ID', 'Type', 'Status', 'Officer', 'Assignment Date']]
+  const tableHead = [['S/N', 'PID', 'Asset', 'Type', 'OS', 'Status', 'Officer', 'Assigned']]
   const tableBody = devices.map(device => [
     device.serial_number || '-',
     device.pid_number || '-',
     device.asset_id || '-',
     device.device_type || '-',
+    formatOS(device.operating_system),
     device.status || '-',
     device.officer || '-',
-    device.assignment_date || '-'
+    formatDateForPDF(device.assignment_date)
   ])
 
-  // Generate table
+  // Generate table - width matches banner width
   autoTable(doc, {
     startY: yPosition,
     head: tableHead,
     body: tableBody,
     theme: 'striped',
+    tableWidth: contentWidth,
     headStyles: {
       fillColor: [41, 128, 185],
       textColor: 255,
@@ -309,13 +361,14 @@ export async function generateDeviceListPDF(devices: Device[], filename: string 
       cellPadding: 2,
     },
     columnStyles: {
-      0: { cellWidth: 35 }, // SN
-      1: { cellWidth: 30 }, // PID
-      2: { cellWidth: 25 }, // Asset ID
-      3: { cellWidth: 25 }, // Type
-      4: { cellWidth: 25 }, // Status
-      5: { cellWidth: 'auto' }, // Officer
-      6: { cellWidth: 35 }  // Date
+      0: { cellWidth: 24 }, // S/N
+      1: { cellWidth: 24 }, // PID
+      2: { cellWidth: 18 }, // Asset
+      3: { cellWidth: 20 }, // Type
+      4: { cellWidth: 16 }, // OS
+      5: { cellWidth: 22 }, // Status
+      6: { cellWidth: 42 }, // Officer (wider)
+      7: { cellWidth: 24 }  // Date
     },
     margin: { top: margin, right: margin, bottom: margin, left: margin },
     didDrawPage: (data) => {
@@ -327,6 +380,103 @@ export async function generateDeviceListPDF(devices: Device[], filename: string 
   })
 
   doc.save(filename)
+}
+
+// Helper function to draw a pie chart
+function drawPieChart(
+  doc: jsPDF, 
+  centerX: number, 
+  centerY: number, 
+  radius: number, 
+  data: { value: number; color: [number, number, number]; label: string }[],
+  title: string
+) {
+  const total = data.reduce((sum, d) => sum + d.value, 0)
+  if (total === 0) return
+
+  // Draw title
+  doc.setFontSize(8)
+  doc.setFont('times', 'bold')
+  doc.setTextColor(0, 0, 0)
+  const titleWidth = doc.getTextWidth(title)
+  doc.text(title, centerX - titleWidth / 2, centerY - radius - 5)
+
+  // Draw pie slices
+  let startAngle = -Math.PI / 2 // Start from top
+  
+  data.forEach((slice) => {
+    if (slice.value === 0) return
+    
+    const sliceAngle = (slice.value / total) * 2 * Math.PI
+    const endAngle = startAngle + sliceAngle
+    
+    // Draw slice using path
+    doc.setFillColor(slice.color[0], slice.color[1], slice.color[2])
+    
+    // Create pie slice path
+    const steps = 50
+    const points: [number, number][] = [[centerX, centerY]]
+    
+    for (let i = 0; i <= steps; i++) {
+      const angle = startAngle + (sliceAngle * i / steps)
+      const x = centerX + radius * Math.cos(angle)
+      const y = centerY + radius * Math.sin(angle)
+      points.push([x, y])
+    }
+    
+    // Draw the slice
+    doc.setDrawColor(255, 255, 255)
+    doc.setLineWidth(0.5)
+    
+    // Move to center, then draw arc
+    let pathStr = `${points[0][0]} ${points[0][1]} m `
+    for (let i = 1; i < points.length; i++) {
+      pathStr += `${points[i][0]} ${points[i][1]} l `
+    }
+    pathStr += 'h f'
+    
+    // Use triangle fan approach for filled pie
+    for (let i = 1; i < points.length - 1; i++) {
+      doc.triangle(
+        points[0][0], points[0][1],
+        points[i][0], points[i][1],
+        points[i + 1][0], points[i + 1][1],
+        'F'
+      )
+    }
+    
+    startAngle = endAngle
+  })
+
+  // Draw legend below chart
+  doc.setFontSize(6)
+  doc.setFont('times', 'normal')
+  let legendY = centerY + radius + 4
+  const legendItemWidth = (radius * 2) / Math.min(data.filter(d => d.value > 0).length, 2)
+  let legendX = centerX - radius
+  let itemCount = 0
+  
+  data.forEach((slice) => {
+    if (slice.value === 0) return
+    
+    const percent = Math.round((slice.value / total) * 100)
+    
+    // Color box
+    doc.setFillColor(slice.color[0], slice.color[1], slice.color[2])
+    doc.rect(legendX, legendY - 2, 3, 3, 'F')
+    
+    // Label
+    doc.setTextColor(60, 60, 60)
+    doc.text(`${slice.label} ${percent}%`, legendX + 4, legendY)
+    
+    itemCount++
+    if (itemCount % 2 === 0) {
+      legendY += 4
+      legendX = centerX - radius
+    } else {
+      legendX += legendItemWidth + 2
+    }
+  })
 }
 
 function parseMemoBody(body: string): { to?: string; from?: string; date?: string; subject?: string; body: string } {
@@ -492,6 +642,30 @@ function formatBodyContent(body: string): string {
   formatted = formatted.replace(/\n{3,}/g, '\n\n')
   
   return formatted.trim()
+}
+
+function formatOS(os: string | undefined): string {
+  if (!os) return 'Win 11'
+  // Shorten "Windows X" to "Win X" for PDF
+  return os.replace('Windows ', 'Win ')
+}
+
+function formatDateForPDF(dateStr: string | undefined): string {
+  if (!dateStr || dateStr === '-') return '-'
+  
+  try {
+    // Handle ISO date format (YYYY-MM-DD) or other common formats
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return dateStr // Return original if invalid
+    
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const year = date.getFullYear()
+    
+    return `${month}/${day}/${year}`
+  } catch {
+    return dateStr // Return original on error
+  }
 }
 
 function loadImageAsDataUrl(src: string): Promise<string> {
