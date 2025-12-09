@@ -1,7 +1,8 @@
 "use client"
 
-import { ProfilePage } from "@/components/profile-page"
+import { StaffDashboard } from "@/components/staff-dashboard"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
@@ -18,7 +19,7 @@ import { signOut } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { LoginForm } from "@/components/login-form"
 
-function ProfileApp() {
+function StaffApp() {
   const { user } = useAuth()
 
   const handleSignOut = async () => {
@@ -46,7 +47,7 @@ function ProfileApp() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Profile</BreadcrumbPage>
+                  <BreadcrumbPage>Staff</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -57,7 +58,9 @@ function ProfileApp() {
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min pt-6">
-            <ProfilePage />
+            <ErrorBoundary>
+              <StaffDashboard />
+            </ErrorBoundary>
           </div>
         </div>
       </SidebarInset>
@@ -65,19 +68,13 @@ function ProfileApp() {
   )
 }
 
-export default function Profile() {
+export default function Staff() {
   return (
-    <AuthProvider>
-      <ProfileApp />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <StaffApp />
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
-
-
-
-
-
-
-
-
 

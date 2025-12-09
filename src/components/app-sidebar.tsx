@@ -80,9 +80,13 @@ export function AppSidebar({ userEmail, onSignOut, ...props }: AppSidebarProps) 
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Officers">
+                <SidebarMenuButton 
+                  isActive={pathname === "/staff"} 
+                  onClick={() => router.push("/staff")}
+                  tooltip="Staff"
+                >
                   <Users />
-                  <span className="group-data-[collapsible=icon]:hidden">Officers</span>
+                  <span className="group-data-[collapsible=icon]:hidden">Staff</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

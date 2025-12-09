@@ -106,3 +106,72 @@ export interface RateLimitResult {
   remainingAttempts: number;
   retryAfterMs?: number;
 }
+
+/**
+ * Staff employment status
+ */
+export type StaffStatus = "Active" | "Inactive" | "On Leave" | "Terminated";
+
+/**
+ * Staff rank/position
+ */
+export type StaffRank = "Chief" | "Captain" | "Lieutenant" | "Sergeant" | "Corporal" | "Officer" | "Detective" | "Civilian" | "Other";
+
+/**
+ * METERS certification status
+ */
+export type MetersCertStatus = "Valid" | "Expiring Soon" | "Expired" | "Not Certified";
+
+/**
+ * Staff member entity
+ */
+export interface StaffMember {
+  /** Unique identifier from Firestore */
+  id: string;
+  /** First name */
+  first_name: string;
+  /** Last name */
+  last_name: string;
+  /** Badge number */
+  badge_number: string;
+  /** Employee ID */
+  employee_id: string;
+  /** Rank/position */
+  rank: StaffRank;
+  /** Current employment status */
+  status: StaffStatus;
+  /** Email address */
+  email?: string;
+  /** Phone number */
+  phone?: string;
+  /** Hire date (ISO format) */
+  hire_date: string;
+  /** Department/unit */
+  department?: string;
+  /** METERS certification date (ISO format) - when they completed the training */
+  meters_certification_date?: string;
+  /** METERS expiration date (ISO format) - 2 years from certification */
+  meters_expiration_date?: string;
+  /** Additional notes */
+  notes?: string;
+  /** Last update timestamp (ISO format) */
+  updated_at?: string;
+}
+
+/**
+ * Form data for creating/updating staff members
+ */
+export type StaffFormData = Omit<StaffMember, "id" | "updated_at">;
+
+/**
+ * Statistics about staff
+ */
+export interface StaffStats {
+  total: number;
+  byStatus: Record<StaffStatus, number>;
+  byRank: Record<StaffRank, number>;
+  metersCertified: number;
+  metersExpiringSoon: number;
+  metersExpired: number;
+  metersNotCertified: number;
+}
