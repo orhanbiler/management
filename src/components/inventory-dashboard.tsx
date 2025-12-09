@@ -81,6 +81,7 @@ import {
   ShieldX
 } from "lucide-react"
 import { toast } from "sonner"
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
 import { generatePDF, generateDeviceListPDF } from "@/lib/pdf-generator"
 import { 
   getFirebaseErrorMessage, 
@@ -98,6 +99,7 @@ export function InventoryDashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("All")
   const [pidRegisteredFilter, setPidRegisteredFilter] = useState<string>("All")
+  const [showRetired, setShowRetired] = useState(false)
   
   // Sorting State
   const [sortBy, setSortBy] = useState<"asset_id" | "serial_number" | "pid_number" | "officer" | "status">("asset_id")
@@ -166,6 +168,12 @@ export function InventoryDashboard() {
   // Filtering & Sorting
   useEffect(() => {
     let result = inventory
+
+    // Hide retired devices by default unless showRetired is checked
+    // This includes both status "Retired" AND devices marked "to_be_retired"
+    if (!showRetired) {
+      result = result.filter(item => item.status !== "Retired" && !item.to_be_retired)
+    }
 
     if (searchQuery) {
       const q = searchQuery.toUpperCase()
@@ -242,7 +250,7 @@ export function InventoryDashboard() {
       })
       return newSet
     })
-  }, [inventory, searchQuery, statusFilter, pidRegisteredFilter, sortBy, sortOrder])
+  }, [inventory, searchQuery, statusFilter, pidRegisteredFilter, showRetired, sortBy, sortOrder])
 
   // Handle column header click for sorting
   const handleSort = (column: typeof sortBy) => {
@@ -923,6 +931,12 @@ export function InventoryDashboard() {
       Desktop: inventory.filter(d => d.device_type === "Desktop").length,
       Other: inventory.filter(d => d.device_type === "Other").length,
     }
+    const byOS = {
+      "Windows 11": inventory.filter(d => d.operating_system === "Windows 11" || !d.operating_system).length,
+      "Windows 10": inventory.filter(d => d.operating_system === "Windows 10").length,
+      "Windows 8": inventory.filter(d => d.operating_system === "Windows 8").length,
+      "Windows 7": inventory.filter(d => d.operating_system === "Windows 7").length,
+    }
     const toBeRetired = inventory.filter(d => d.to_be_retired === true).length
     const pidRegistered = inventory.filter(d => d.pid_registered === true).length
     const pidNotRegistered = inventory.filter(d => d.pid_registered !== true).length
@@ -950,6 +964,7 @@ export function InventoryDashboard() {
       total,
       byStatus,
       byType,
+      byOS,
       toBeRetired,
       pidRegistered,
       pidNotRegistered,
@@ -1307,6 +1322,115 @@ export function InventoryDashboard() {
         </Card>
       </div>
 
+      {/* Pie Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* OS Distribution Pie Chart */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Laptop className="h-5 w-5 text-primary" />
+              Operating System Distribution
+            </h3>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Win 11', value: stats.byOS["Windows 11"], color: '#0ea5e9' },
+                      { name: 'Win 10', value: stats.byOS["Windows 10"], color: '#8b5cf6' },
+                      { name: 'Win 8', value: stats.byOS["Windows 8"], color: '#f59e0b' },
+                      { name: 'Win 7', value: stats.byOS["Windows 7"], color: '#ef4444' },
+                    ].filter(d => d.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {[
+                      { name: 'Win 11', value: stats.byOS["Windows 11"], color: '#0ea5e9' },
+                      { name: 'Win 10', value: stats.byOS["Windows 10"], color: '#8b5cf6' },
+                      { name: 'Win 8', value: stats.byOS["Windows 8"], color: '#f59e0b' },
+                      { name: 'Win 7', value: stats.byOS["Windows 7"], color: '#ef4444' },
+                    ].filter(d => d.value > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                    formatter={(value: number) => [`${value} devices`, '']}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value) => <span style={{ color: 'hsl(var(--foreground))' }}>{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* PID Registration Pie Chart */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              PID Registration Status
+            </h3>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Registered', value: stats.pidRegistered, color: '#10b981' },
+                      { name: 'Not Registered', value: stats.pidNotRegistered, color: '#ef4444' },
+                    ].filter(d => d.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {[
+                      { name: 'Registered', value: stats.pidRegistered, color: '#10b981' },
+                      { name: 'Not Registered', value: stats.pidNotRegistered, color: '#ef4444' },
+                    ].filter(d => d.value > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                    formatter={(value: number) => [`${value} devices`, '']}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value) => <span style={{ color: 'hsl(var(--foreground))' }}>{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Controls */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
@@ -1321,7 +1445,7 @@ export function InventoryDashboard() {
                   placeholder="Search by Serial Number, PID, Officer, or Asset ID..." 
                   className="pl-10 h-11 bg-muted/30 border-muted-foreground/20 focus:bg-background transition-colors"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                 />
               </div>
               
@@ -1397,8 +1521,24 @@ export function InventoryDashboard() {
                   </Select>
                 </div>
 
+                {/* Show Retired Checkbox */}
+                <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-muted-foreground/20 bg-muted/30">
+                  <Checkbox 
+                    id="show-retired"
+                    checked={showRetired}
+                    onCheckedChange={(checked) => setShowRetired(checked === true)}
+                    className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                  />
+                  <label 
+                    htmlFor="show-retired" 
+                    className="text-sm cursor-pointer select-none text-muted-foreground"
+                  >
+                    Show Retired
+                  </label>
+                </div>
+
                 {/* Active filters indicator */}
-                {(statusFilter !== "All" || pidRegisteredFilter !== "All") && (
+                {(statusFilter !== "All" || pidRegisteredFilter !== "All" || showRetired) && (
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -1406,6 +1546,7 @@ export function InventoryDashboard() {
                     onClick={() => {
                       setStatusFilter("All")
                       setPidRegisteredFilter("All")
+                      setShowRetired(false)
                     }}
                   >
                     Clear filters

@@ -34,7 +34,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { FancySwitch } from "@/components/ui/animated-switch"
 import { calculateExpectedPid, isPidMismatch } from "@/lib/utils"
 import { sanitizeAlphanumeric, sanitizeInput, secureLog } from "@/lib/security"
-import { AlertTriangle, Loader2, Copy, Check } from "lucide-react"
+import { AlertTriangle, Loader2, Copy, Check, CircleCheck } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Copyable Input Component with touch/click to copy
 function CopyableInput({ value }: { value: string }) {
@@ -101,10 +102,16 @@ const formSchema = z.object({
   pid_number: z.string().optional(),
   asset_id: z.string().optional(),
   device_type: z.enum(["Toughbook", "Laptop", "Desktop", "Other"]),
+  operating_system: z.enum(["Windows 11", "Windows 10", "Windows 8", "Windows 7"]).optional(),
   ori_number: z.string().optional(),
   status: z.enum(["Assigned", "Unassigned", "Retired", "Unknown"]),
   to_be_retired: z.boolean().optional(),
   pid_registered: z.boolean().optional(),
+  // Retirement process checklist
+  retirement_msp_deactivated: z.boolean().optional(),
+  retirement_capwin_deactivated: z.boolean().optional(),
+  retirement_domain_disconnected: z.boolean().optional(),
+  retirement_formatted: z.boolean().optional(),
   officer: z.string().optional(),
   assignment_date: z.string().optional(),
   notes: z.string().optional(),
@@ -147,10 +154,15 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
       pid_number: "",
       asset_id: "",
       device_type: "Toughbook",
+      operating_system: "Windows 11",
       ori_number: "",
       status: "Unassigned",
       to_be_retired: false,
       pid_registered: false,
+      retirement_msp_deactivated: false,
+      retirement_capwin_deactivated: false,
+      retirement_domain_disconnected: false,
+      retirement_formatted: false,
       officer: "",
       assignment_date: new Date().toISOString().split("T")[0],
       notes: "",
@@ -166,10 +178,15 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
           pid_number: device.pid_number,
           asset_id: device.asset_id || "",
           device_type: device.device_type || "Toughbook",
+          operating_system: device.operating_system || "Windows 11",
           ori_number: device.ori_number || "",
           status: device.status,
           to_be_retired: device.to_be_retired || false,
           pid_registered: device.pid_registered || false,
+          retirement_msp_deactivated: device.retirement_msp_deactivated || false,
+          retirement_capwin_deactivated: device.retirement_capwin_deactivated || false,
+          retirement_domain_disconnected: device.retirement_domain_disconnected || false,
+          retirement_formatted: device.retirement_formatted || false,
           officer: device.officer,
           assignment_date: device.assignment_date,
           notes: device.notes,
@@ -180,10 +197,15 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
           pid_number: "",
           asset_id: "",
           device_type: "Toughbook",
+          operating_system: "Windows 11",
           ori_number: "",
           status: "Unassigned",
           to_be_retired: false,
           pid_registered: false,
+          retirement_msp_deactivated: false,
+          retirement_capwin_deactivated: false,
+          retirement_domain_disconnected: false,
+          retirement_formatted: false,
           officer: "",
           assignment_date: new Date().toISOString().split("T")[0],
           notes: "",
@@ -196,6 +218,23 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
   const serialNumber = form.watch("serial_number")
   const pidNumber = form.watch("pid_number")
   const deviceType = form.watch("device_type")
+  const toBeRetired = form.watch("to_be_retired")
+  
+  // Watch retirement checklist values for progress calculation
+  const retirementMspDeactivated = form.watch("retirement_msp_deactivated")
+  const retirementCapwinDeactivated = form.watch("retirement_capwin_deactivated")
+  const retirementDomainDisconnected = form.watch("retirement_domain_disconnected")
+  const retirementFormatted = form.watch("retirement_formatted")
+  
+  // Calculate retirement progress
+  const retirementStepsCompleted = useMemo(() => {
+    return [
+      retirementMspDeactivated,
+      retirementCapwinDeactivated,
+      retirementDomainDisconnected,
+      retirementFormatted
+    ].filter(Boolean).length
+  }, [retirementMspDeactivated, retirementCapwinDeactivated, retirementDomainDisconnected, retirementFormatted])
   
   const expectedPid = useMemo(() => {
     if (!serialNumber || !serialNumber.trim()) return ""
@@ -256,10 +295,15 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
         pid_number: (values.pid_number || "").toUpperCase(),
         asset_id: (values.asset_id || "").toUpperCase(),
         device_type: values.device_type,
+        operating_system: values.operating_system || "Windows 11",
         ori_number: values.ori_number ? values.ori_number.toUpperCase() : "",
         status: values.status,
         to_be_retired: values.to_be_retired || false,
         pid_registered: values.pid_registered || false,
+        retirement_msp_deactivated: values.retirement_msp_deactivated || false,
+        retirement_capwin_deactivated: values.retirement_capwin_deactivated || false,
+        retirement_domain_disconnected: values.retirement_domain_disconnected || false,
+        retirement_formatted: values.retirement_formatted || false,
         officer: (values.officer || "").toUpperCase(),
         assignment_date: values.assignment_date || "",
         notes: values.notes || "",
@@ -432,6 +476,31 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
               />
             </div>
 
+            {/* Operating System */}
+            <FormField
+              control={form.control}
+              name="operating_system"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Operating System</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select OS" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Windows 11">Windows 11</SelectItem>
+                      <SelectItem value="Windows 10">Windows 10</SelectItem>
+                      <SelectItem value="Windows 8">Windows 8</SelectItem>
+                      <SelectItem value="Windows 7">Windows 7</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* To Be Retired Switch */}
               <FormField
@@ -473,6 +542,138 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
                 )}
               />
             </div>
+
+            {/* Retirement Process Checklist - Shows when To Be Retired is ON */}
+            {toBeRetired && (
+              <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-orange-600 dark:text-orange-400 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Retirement Process Checklist
+                  </h4>
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-400">
+                    {retirementStepsCompleted}/4 Complete
+                  </span>
+                </div>
+                
+                {/* Progress bar */}
+                <div className="h-1.5 w-full bg-orange-500/20 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-orange-500 transition-all duration-500 ease-out rounded-full"
+                    style={{ width: `${(retirementStepsCompleted / 4) * 100}%` }}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  {/* Step 1: MSP */}
+                  <FormField
+                    control={form.control}
+                    name="retirement_msp_deactivated"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-3 py-1.5">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                          />
+                        </FormControl>
+                        <div className="flex items-center gap-2">
+                          <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${field.value ? 'bg-orange-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                            1
+                          </span>
+                          <FormLabel className={`text-sm cursor-pointer ${field.value ? 'line-through text-muted-foreground' : ''}`}>
+                            Deactivate PID from MSP
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Step 2: CAPWIN */}
+                  <FormField
+                    control={form.control}
+                    name="retirement_capwin_deactivated"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-3 py-1.5">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                          />
+                        </FormControl>
+                        <div className="flex items-center gap-2">
+                          <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${field.value ? 'bg-orange-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                            2
+                          </span>
+                          <FormLabel className={`text-sm cursor-pointer ${field.value ? 'line-through text-muted-foreground' : ''}`}>
+                            Deactivate PID from CAPWIN
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Step 3: Domain Controller */}
+                  <FormField
+                    control={form.control}
+                    name="retirement_domain_disconnected"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-3 py-1.5">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                          />
+                        </FormControl>
+                        <div className="flex items-center gap-2">
+                          <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${field.value ? 'bg-orange-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                            3
+                          </span>
+                          <FormLabel className={`text-sm cursor-pointer ${field.value ? 'line-through text-muted-foreground' : ''}`}>
+                            Disconnect from Domain Controller
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Step 4: Format */}
+                  <FormField
+                    control={form.control}
+                    name="retirement_formatted"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-3 py-1.5">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                          />
+                        </FormControl>
+                        <div className="flex items-center gap-2">
+                          <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${field.value ? 'bg-orange-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                            4
+                          </span>
+                          <FormLabel className={`text-sm cursor-pointer ${field.value ? 'line-through text-muted-foreground' : ''}`}>
+                            Format Device
+                          </FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                {retirementStepsCompleted === 4 && (
+                  <div className="flex items-center gap-2 pt-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in duration-300">
+                    <CircleCheck className="h-4 w-4" />
+                    Ready for final retirement
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ORI Number - Available for all device types */}
             <FormField
