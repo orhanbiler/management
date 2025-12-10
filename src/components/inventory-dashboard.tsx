@@ -353,12 +353,15 @@ export function InventoryDashboard() {
       setIsDeviceModalOpen(false)
       setEditingDevice(null)
     } catch (error: unknown) {
+      // Log error details for debugging
+      const firebaseError = error as { code?: string; message?: string }
       secureLog("error", "Save device error", { 
-        isEdit: !!editingDevice 
+        isEdit: !!editingDevice,
+        errorCode: firebaseError?.code || "unknown",
+        errorMessage: firebaseError?.message || String(error)
       })
       
       // Use secure error messaging
-      const firebaseError = error as { code?: string; message?: string }
       if (firebaseError?.message && !firebaseError?.code) {
         // Custom validation error
         toast.error(firebaseError.message)
@@ -978,19 +981,19 @@ export function InventoryDashboard() {
   })()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Statistics Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {/* Total Devices */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Devices</p>
-                <p className="text-3xl font-bold mt-2">{stats.total}</p>
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Total</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{stats.total}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-primary" />
+              <div className="h-9 w-9 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -998,15 +1001,15 @@ export function InventoryDashboard() {
 
         {/* Assigned Devices */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Assigned</p>
-                <p className="text-3xl font-bold mt-2">{stats.byStatus.Assigned}</p>
-                <p className="text-xs text-muted-foreground mt-1">{stats.assignmentRate}% of total</p>
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Assigned</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{stats.byStatus.Assigned}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">{stats.assignmentRate}%</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div className="h-9 w-9 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </CardContent>
@@ -1014,15 +1017,15 @@ export function InventoryDashboard() {
 
         {/* Unassigned Devices */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Unassigned</p>
-                <p className="text-3xl font-bold mt-2">{stats.byStatus.Unassigned}</p>
-                <p className="text-xs text-muted-foreground mt-1">Available for assignment</p>
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Unassigned</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{stats.byStatus.Unassigned}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">Available</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <div className="h-9 w-9 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </CardContent>
@@ -1030,15 +1033,15 @@ export function InventoryDashboard() {
 
         {/* To Be Retired */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">To Be Retired</p>
-                <p className="text-3xl font-bold mt-2">{stats.toBeRetired}</p>
-                <p className="text-xs text-muted-foreground mt-1">Scheduled for retirement</p>
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Retiring</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{stats.toBeRetired}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">Scheduled</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
-                <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              <div className="h-9 w-9 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
           </CardContent>
@@ -1046,17 +1049,17 @@ export function InventoryDashboard() {
 
         {/* PID Registered */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">PID Registered</p>
-                <p className="text-3xl font-bold mt-2">{stats.pidRegistered}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats.total > 0 ? Math.round((stats.pidRegistered / stats.total) * 100) : 0}% registered
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Registered</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{stats.pidRegistered}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">
+                  {stats.total > 0 ? Math.round((stats.pidRegistered / stats.total) * 100) : 0}%
                 </p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center">
-                <ShieldCheck className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              <div className="h-9 w-9 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">
+                <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -1064,15 +1067,15 @@ export function InventoryDashboard() {
 
         {/* PID Not Registered */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">PID Not Registered</p>
-                <p className="text-3xl font-bold mt-2">{stats.pidNotRegistered}</p>
-                <p className="text-xs text-muted-foreground mt-1">Pending registration</p>
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Not Reg.</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{stats.pidNotRegistered}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">Pending</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                <ShieldX className="h-6 w-6 text-red-600 dark:text-red-400" />
+              <div className="h-9 w-9 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0">
+                <ShieldX className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-red-600 dark:text-red-400" />
               </div>
             </div>
           </CardContent>
@@ -1083,70 +1086,70 @@ export function InventoryDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Status Breakdown */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold">Status Breakdown</h3>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <h3 className="text-base sm:text-lg font-semibold">Status Breakdown</h3>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Assigned</span>
+            <div className="space-y-2.5 sm:space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm truncate">Assigned</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-green-600 rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byStatus.Assigned / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Assigned}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byStatus.Assigned}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm">Unassigned</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm truncate">Unassigned</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-blue-600 rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byStatus.Unassigned / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Unassigned}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byStatus.Unassigned}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <XCircle className="h-4 w-4 text-gray-600" />
-                  <span className="text-sm">Retired</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm truncate">Retired</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-gray-600 rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byStatus.Retired / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Retired}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byStatus.Retired}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm">Unknown</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm truncate">Unknown</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-yellow-600 rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byStatus.Unknown / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byStatus.Unknown}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byStatus.Unknown}</span>
                 </div>
               </div>
             </div>
@@ -1155,58 +1158,58 @@ export function InventoryDashboard() {
 
         {/* Device Type Breakdown */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Laptop className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold">Device Type Breakdown</h3>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <Laptop className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <h3 className="text-base sm:text-lg font-semibold">Device Types</h3>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Toughbook</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+            <div className="space-y-2.5 sm:space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm truncate">Toughbook</span>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byType.Toughbook / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Toughbook}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byType.Toughbook}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Laptop</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm truncate">Laptop</span>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byType.Laptop / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Laptop}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byType.Laptop}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Desktop</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm truncate">Desktop</span>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byType.Desktop / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Desktop}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byType.Desktop}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Other</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm truncate">Other</span>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.byType.Other / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.byType.Other}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.byType.Other}</span>
                 </div>
               </div>
             </div>
@@ -1215,52 +1218,52 @@ export function InventoryDashboard() {
 
         {/* PID Registration Status */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold">PID Registration Status</h3>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <h3 className="text-base sm:text-lg font-semibold truncate">PID Registration</h3>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                  <span className="text-sm">Registered</span>
+            <div className="space-y-2.5 sm:space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm truncate">Registered</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-emerald-600 rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.pidRegistered / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.pidRegistered}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.pidRegistered}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldX className="h-4 w-4 text-red-600" />
-                  <span className="text-sm">Not Registered</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <ShieldX className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm truncate">Not Registered</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-24 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-red-600 rounded-full" 
                       style={{ width: `${stats.total > 0 ? (stats.pidNotRegistered / stats.total) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-sm font-medium w-8 text-right">{stats.pidNotRegistered}</span>
+                  <span className="text-xs sm:text-sm font-medium w-6 sm:w-8 text-right">{stats.pidNotRegistered}</span>
                 </div>
               </div>
             </div>
             {/* Registration Progress */}
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Registration Progress</span>
+            <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="text-muted-foreground">Progress</span>
                 <span className="font-semibold text-emerald-600">
                   {stats.total > 0 ? Math.round((stats.pidRegistered / stats.total) * 100) : 0}%
                 </span>
               </div>
-              <div className="mt-2 h-3 bg-muted rounded-full overflow-hidden">
+              <div className="mt-1.5 sm:mt-2 h-2 sm:h-3 bg-muted rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500" 
                   style={{ width: `${stats.total > 0 ? (stats.pidRegistered / stats.total) * 100 : 0}%` }}
@@ -1272,52 +1275,52 @@ export function InventoryDashboard() {
       </div>
 
       {/* Additional Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {/* PID Mismatches */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <span className="text-sm font-medium">PID Mismatches</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-600 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium truncate">PID Mismatch</span>
             </div>
-            <p className="text-2xl font-bold">{stats.pidMismatches}</p>
-            <p className="text-xs text-muted-foreground mt-1">Requires attention</p>
+            <p className="text-xl sm:text-2xl font-bold">{stats.pidMismatches}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">Needs attention</p>
           </CardContent>
         </Card>
 
         {/* Missing Data */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <span className="text-sm font-medium">Missing Serial</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium truncate">No Serial</span>
             </div>
-            <p className="text-2xl font-bold">{stats.withoutSerial}</p>
-            <p className="text-xs text-muted-foreground mt-1">Incomplete records</p>
+            <p className="text-xl sm:text-2xl font-bold">{stats.withoutSerial}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">Incomplete</p>
           </CardContent>
         </Card>
 
         {/* Missing PID */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <span className="text-sm font-medium">Missing PID</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium truncate">No PID</span>
             </div>
-            <p className="text-2xl font-bold">{stats.withoutPid}</p>
-            <p className="text-xs text-muted-foreground mt-1">Incomplete records</p>
+            <p className="text-xl sm:text-2xl font-bold">{stats.withoutPid}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">Incomplete</p>
           </CardContent>
         </Card>
 
         {/* Recently Assigned */}
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium">Recent Assignments</span>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium truncate">Recent</span>
             </div>
-            <p className="text-2xl font-bold">{stats.recentlyAssigned}</p>
-            <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+            <p className="text-xl sm:text-2xl font-bold">{stats.recentlyAssigned}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">Last 30 days</p>
           </CardContent>
         </Card>
       </div>
@@ -1325,15 +1328,15 @@ export function InventoryDashboard() {
       {/* Pie Charts Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* OS Distribution Pie Chart */}
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Laptop className="h-5 w-5 text-primary" />
-              Operating System Distribution
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+              <Laptop className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <span className="truncate">OS Distribution</span>
             </h3>
-            <div className="h-[280px]">
+            <div className="h-[240px] sm:h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                   <Pie
                     data={[
                       { name: 'Win 11', value: stats.byOS["Windows 11"], color: '#0ea5e9' },
@@ -1342,13 +1345,11 @@ export function InventoryDashboard() {
                       { name: 'Win 7', value: stats.byOS["Windows 7"], color: '#ef4444' },
                     ].filter(d => d.value > 0)}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
+                    cy="45%"
+                    innerRadius="40%"
+                    outerRadius="70%"
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                    labelLine={false}
                   >
                     {[
                       { name: 'Win 11', value: stats.byOS["Windows 11"], color: '#0ea5e9' },
@@ -1364,14 +1365,24 @@ export function InventoryDashboard() {
                       backgroundColor: 'hsl(var(--card))', 
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                      fontSize: '12px',
+                      padding: '8px 12px'
                     }}
-                    formatter={(value: number) => [`${value} devices`, '']}
+                    formatter={(value: number, name: string) => [`${value} devices`, name]}
                   />
                   <Legend 
                     verticalAlign="bottom" 
-                    height={36}
-                    formatter={(value) => <span style={{ color: 'hsl(var(--foreground))' }}>{value}</span>}
+                    align="center"
+                    wrapperStyle={{ 
+                      paddingTop: '8px',
+                      fontSize: '11px'
+                    }}
+                    iconSize={10}
+                    iconType="circle"
+                    formatter={(value) => (
+                      <span style={{ color: 'hsl(var(--foreground))', fontSize: '11px', marginRight: '8px' }}>{value}</span>
+                    )}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -1380,28 +1391,26 @@ export function InventoryDashboard() {
         </Card>
 
         {/* PID Registration Pie Chart */}
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              PID Registration Status
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <span className="truncate">PID Registration Status</span>
             </h3>
-            <div className="h-[280px]">
+            <div className="h-[240px] sm:h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                   <Pie
                     data={[
                       { name: 'Registered', value: stats.pidRegistered, color: '#10b981' },
                       { name: 'Not Registered', value: stats.pidNotRegistered, color: '#ef4444' },
                     ].filter(d => d.value > 0)}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
+                    cy="45%"
+                    innerRadius="40%"
+                    outerRadius="70%"
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                    labelLine={false}
                   >
                     {[
                       { name: 'Registered', value: stats.pidRegistered, color: '#10b981' },
@@ -1415,14 +1424,24 @@ export function InventoryDashboard() {
                       backgroundColor: 'hsl(var(--card))', 
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                      fontSize: '12px',
+                      padding: '8px 12px'
                     }}
-                    formatter={(value: number) => [`${value} devices`, '']}
+                    formatter={(value: number, name: string) => [`${value} devices`, name]}
                   />
                   <Legend 
                     verticalAlign="bottom" 
-                    height={36}
-                    formatter={(value) => <span style={{ color: 'hsl(var(--foreground))' }}>{value}</span>}
+                    align="center"
+                    wrapperStyle={{ 
+                      paddingTop: '8px',
+                      fontSize: '11px'
+                    }}
+                    iconSize={10}
+                    iconType="circle"
+                    formatter={(value) => (
+                      <span style={{ color: 'hsl(var(--foreground))', fontSize: '11px', marginRight: '8px' }}>{value}</span>
+                    )}
                   />
                 </PieChart>
               </ResponsiveContainer>

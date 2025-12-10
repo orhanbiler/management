@@ -56,9 +56,21 @@ service cloud.firestore {
         'operating_system', 'ori_number', 'status', 'to_be_retired', 'pid_registered',
         'retirement_msp_deactivated', 'retirement_capwin_deactivated',
         'retirement_domain_disconnected', 'retirement_formatted',
-        'officer', 'assignment_date', 'notes', 'updated_at'
+        'officer', 'assignment_date', 'notes', 'updated_at', 'created_at'
       ];
       return data.keys().hasOnly(allowedFields);
+    }
+    
+    // Check only the fields being updated (for update operations)
+    function hasOnlyAllowedUpdateFields(data) {
+      let allowedFields = [
+        'serial_number', 'pid_number', 'asset_id', 'device_type',
+        'operating_system', 'ori_number', 'status', 'to_be_retired', 'pid_registered',
+        'retirement_msp_deactivated', 'retirement_capwin_deactivated',
+        'retirement_domain_disconnected', 'retirement_formatted',
+        'officer', 'assignment_date', 'notes', 'updated_at', 'created_at'
+      ];
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
     }
     
     // ============================================
@@ -75,9 +87,9 @@ service cloud.firestore {
                    && isValidDevice(request.resource.data);
       
       // Update: Only authenticated users with valid data
-      // Prevent changing the document ID
+      // Only check the fields being changed, not the entire document
       allow update: if isAuthenticated()
-                   && hasOnlyAllowedFields(request.resource.data)
+                   && hasOnlyAllowedUpdateFields(request.resource.data)
                    && isValidDevice(request.resource.data);
       
       // Delete: Only authenticated users 
