@@ -78,7 +78,8 @@ import {
   TrendingUp,
   Building2,
   ShieldCheck,
-  ShieldX
+  ShieldX,
+  Users
 } from "lucide-react"
 import { toast } from "sonner"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts"
@@ -963,6 +964,13 @@ export function InventoryDashboard() {
     // Assignment rate (percentage)
     const assignmentRate = total > 0 ? Math.round((byStatus.Assigned / total) * 100) : 0
 
+    // Count unique officers with assigned devices
+    const uniqueOfficers = new Set(
+      inventory
+        .filter(d => d.status === "Assigned" && d.officer && d.officer.trim() !== "")
+        .map(d => d.officer.toUpperCase().trim())
+    ).size
+
     return {
       total,
       byStatus,
@@ -976,7 +984,8 @@ export function InventoryDashboard() {
       withoutPid,
       withoutAssetId,
       recentlyAssigned,
-      assignmentRate
+      assignmentRate,
+      uniqueOfficers
     }
   })()
 
@@ -1275,7 +1284,19 @@ export function InventoryDashboard() {
       </div>
 
       {/* Additional Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        {/* Officers with Devices */}
+        <Card>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium truncate">Officers</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-bold">{stats.uniqueOfficers}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1 truncate">With devices</p>
+          </CardContent>
+        </Card>
+
         {/* PID Mismatches */}
         <Card>
           <CardContent className="p-3 sm:p-4">
