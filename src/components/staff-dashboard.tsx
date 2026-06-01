@@ -551,8 +551,88 @@ export function StaffDashboard() {
         </CardContent>
       </Card>
 
-      {/* Staff Table */}
-      <Card>
+      {/* Mobile / tablet card list */}
+      <div className="lg:hidden space-y-3">
+        {filteredStaff.length === 0 ? (
+          <Card>
+            <CardContent className="p-8">
+              <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground text-center">
+                <Users className="h-10 w-10" />
+                <p className="text-base font-medium">No staff members found</p>
+                <p className="text-sm">Add your first staff member to get started</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredStaff.map((member) => {
+            const metersStatus = getMetersCertStatus(member)
+            return (
+              <Card key={member.id} className="overflow-hidden">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{member.last_name}, {member.first_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {member.rank}{member.department ? ` · ${member.department}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant={statusVariants[member.status]} className="flex-shrink-0">
+                      {member.status}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Badge</p>
+                      <p className="font-mono">{member.badge_number || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">METERS</p>
+                      <Badge variant={metersStatusVariants[metersStatus]} className="mt-0.5">{metersStatus}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Certified</p>
+                      <p className="text-xs">{formatDate(member.meters_certification_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Expires</p>
+                      <p className={`text-xs ${
+                        metersStatus === "Expired" ? "text-red-500 font-medium" :
+                        metersStatus === "Expiring Soon" ? "text-amber-500 font-medium" : ""
+                      }`}>
+                        {formatDate(member.meters_expiration_date)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-10"
+                      onClick={() => { setEditingStaff(member); setIsStaffModalOpen(true) }}
+                    >
+                      <Edit className="h-4 w-4 mr-1.5" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 flex-shrink-0 text-red-500 hover:text-red-600"
+                      onClick={() => { setStaffToDelete(member); setDeleteConfirmOpen(true) }}
+                      aria-label="Delete staff"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
+
+      {/* Staff Table (desktop / large screens) */}
+      <Card className="hidden lg:block">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>

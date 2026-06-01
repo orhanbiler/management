@@ -804,13 +804,6 @@ export function InventoryDashboard() {
       const trimmedValue = bulkOriValue.trim()
       const sanitizedOri = trimmedValue ? sanitizeAlphanumeric(trimmedValue.toUpperCase()) : ""
 
-      console.log("Bulk ORI Update:", {
-        input: bulkOriValue,
-        sanitized: sanitizedOri,
-        deviceCount: selectedDeviceList.length,
-        deviceIds: selectedDeviceList.map(d => d.id)
-      })
-
       // Use batch write for efficiency
       const batch = writeBatch(db)
       let updateCount = 0
@@ -833,7 +826,6 @@ export function InventoryDashboard() {
       
       secureLog("info", `Bulk ORI update: ${updateCount} devices updated with ORI: ${sanitizedOri}`)
     } catch (error: unknown) {
-      console.error("Bulk ORI update error:", error)
       secureLog("error", "Error updating bulk ORI", { error: String(error) })
       const errorObj = error as { message?: string; code?: string }
       const errorMessage = getFirebaseErrorMessage(errorObj)
@@ -1703,8 +1695,176 @@ export function InventoryDashboard() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card className="overflow-hidden shadow-sm border-t-0">
+      {/* Mobile / tablet card list */}
+      <div className="lg:hidden space-y-3">
+        {/* Select all bar */}
+        {!isLoading && filteredInventory.length > 0 && (
+          <div className="flex items-center justify-between px-1">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={selectedDevices.size === filteredInventory.length && filteredInventory.length > 0}
+                onCheckedChange={handleSelectAll}
+              />
+              Select all ({filteredInventory.length})
+            </label>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span>Synced</span>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4 space-y-3">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-full" />
+              </CardContent>
+            </Card>
+          ))
+        ) : filteredInventory.length === 0 ? (
+          <Card>
+            <CardContent className="p-8">
+              <div className="flex flex-col items-center justify-center text-muted-foreground gap-2 text-center">
+                <Inbox className="h-12 w-12 opacity-20" />
+                <p className="text-base font-medium">No devices found</p>
+                <p className="text-sm">Try adjusting your search or add a new device.</p>
+                <Button variant="outline" size="sm" onClick={handleAddNew} className="mt-2">
+                  <Plus className="mr-2 h-4 w-4" /> Add New Device
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredInventory.map((device) => {
+            const mismatch = isPidMismatch(device.serial_number, device.pid_number)
+            const expected = calculateExpectedPid(device.serial_number)
+
+            return (
+              <Card
+                key={device.id}
+                className={`overflow-hidden ${mismatch ? "border-red-300 dark:border-red-900" : ""} ${device.to_be_retired ? "opacity-80" : ""}`}
+              >
+                <CardContent className="p-4 space-y-3">
+                  {/* Header: checkbox + serial + status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <Checkbox
+                        checked={selectedDevices.has(device.id)}
+                        onCheckedChange={() => handleSelectDevice(device.id)}
+                        className="mt-1 flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-mono font-semibold text-sm break-all">{device.serial_number || "—"}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {device.asset_id || "No Asset ID"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <Badge variant={
+                        device.status === "Assigned" ? "success" :
+                        device.status === "Unassigned" ? "info" :
+                        device.status === "Unknown" ? "warning" : "outline"
+                      }>
+                        {device.status}
+                      </Badge>
+                      {device.to_be_retired && (
+                        <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4">RETIRE</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Details grid */}
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm pl-7">
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Type</p>
+                      <Badge variant="outline" className="mt-0.5">{device.device_type || "Toughbook"}</Badge>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">ORI</p>
+                      <p className="font-mono text-xs break-all">{device.ori_number || "—"}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">PID</p>
+                      {mismatch ? (
+                        <span className="font-mono text-xs text-red-600 font-bold flex items-center gap-1 break-all">
+                          {device.pid_number} <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                        </span>
+                      ) : (
+                        <span className="font-mono text-xs flex items-center gap-1 break-all">
+                          {device.pid_number || "—"}
+                          {device.pid_registered && (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Expected PID</p>
+                      <p className="font-mono text-xs text-muted-foreground break-all">{expected || "—"}</p>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Officer / User</p>
+                      <p className="text-sm font-medium truncate">
+                        {device.officer || <span className="text-muted-foreground italic font-normal">Unassigned</span>}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-2 border-t">
+                    <Button variant="outline" size="sm" className="flex-1 h-10" onClick={() => handleEdit(device)}>
+                      <Edit className="h-4 w-4 mr-1.5" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 flex-shrink-0"
+                      onClick={() => handleCapwinEmail(device)}
+                      disabled={loadingActions.has(`capwin-${device.id}`)}
+                      aria-label="Request CAPWIN PID"
+                    >
+                      {loadingActions.has(`capwin-${device.id}`)
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <FileSignature className="h-4 w-4 text-purple-600" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 flex-shrink-0"
+                      onClick={() => handleOfficerEmail(device)}
+                      disabled={loadingActions.has(`officer-${device.id}`)}
+                      aria-label="Notify Officer"
+                    >
+                      {loadingActions.has(`officer-${device.id}`)
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <Send className="h-4 w-4 text-green-600" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 flex-shrink-0"
+                      onClick={() => handleDeactivationPDF(device)}
+                      disabled={loadingActions.has(`deactivate-${device.id}`)}
+                      aria-label="Generate Deactivation PDF"
+                    >
+                      {loadingActions.has(`deactivate-${device.id}`)
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <FileX className="h-4 w-4 text-red-600" />}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
+
+      {/* Table (desktop / large screens) */}
+      <Card className="hidden lg:block overflow-hidden shadow-sm border-t-0">
         <div className="max-h-[calc(100vh-300px)] overflow-x-auto overflow-y-auto">
           <table className="w-full caption-bottom text-sm">
             <thead className="bg-muted sticky top-0 z-10 shadow-sm [&_tr]:border-b">

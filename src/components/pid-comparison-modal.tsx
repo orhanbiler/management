@@ -224,7 +224,7 @@ export function PidComparisonModal({ open, onOpenChange, inventory, onAddDevices
 
           {parsedPids.length > 0 && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="p-4 rounded-lg border bg-muted/50">
                   <div className="text-sm text-muted-foreground mb-1">Total Input</div>
                   <div className="text-2xl font-bold">{parsedPids.length}</div>

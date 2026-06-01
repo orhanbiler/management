@@ -483,8 +483,8 @@ function parseMemoBody(body: string): { to?: string; from?: string; date?: strin
   const lines = body.split('\n')
   const result: { to?: string; from?: string; date?: string; subject?: string; body: string } = { body: '' }
   
-  let toLines: string[] = []
-  let bodyLines: string[] = []
+  const toLines: string[] = []
+  const bodyLines: string[] = []
   let inToSection = false
   let foundSubject = false
   let foundGreeting = false

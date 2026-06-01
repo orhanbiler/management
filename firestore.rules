@@ -45,8 +45,40 @@ service cloud.firestore {
       let validType = data.device_type in ['Toughbook', 'Laptop', 'Desktop', 'Other'];
       let hasIdentifier = (data.serial_number != null && data.serial_number.size() > 0) ||
                           (data.pid_number != null && data.pid_number.size() > 0);
-      
+
       return validStatus && validType && hasIdentifier;
+    }
+
+    // Validate staff data
+    function isValidStaff(data) {
+      let validStatus = data.status in ['Active', 'Inactive', 'On Leave', 'Terminated'];
+      let validRank = data.rank in ['Chief', 'Captain', 'Lieutenant', 'Sergeant',
+                                    'Corporal', 'Officer', 'Detective', 'Civilian', 'Other'];
+      let hasName = data.first_name is string && data.first_name.size() > 0 &&
+                    data.last_name is string && data.last_name.size() > 0;
+
+      return validStatus && validRank && hasName;
+    }
+
+    // Whitelist of allowed staff fields (prevents field tampering)
+    function hasOnlyAllowedStaffFields(data) {
+      let allowedFields = [
+        'first_name', 'last_name', 'badge_number', 'employee_id', 'rank',
+        'status', 'email', 'phone', 'hire_date', 'department',
+        'meters_certification_date', 'meters_expiration_date', 'notes',
+        'updated_at', 'created_at'
+      ];
+      return data.keys().hasOnly(allowedFields);
+    }
+
+    function hasOnlyAllowedStaffUpdateFields() {
+      let allowedFields = [
+        'first_name', 'last_name', 'badge_number', 'employee_id', 'rank',
+        'status', 'email', 'phone', 'hire_date', 'department',
+        'meters_certification_date', 'meters_expiration_date', 'notes',
+        'updated_at', 'created_at'
+      ];
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
     }
     
     // Prevent field tampering - ensure only allowed fields are present
@@ -168,17 +200,21 @@ service cloud.firestore {
     // STAFF COLLECTION
     // ============================================
     match /staff/{staffId} {
-      
+
       // Read: Only authenticated users
       allow read: if isAuthenticated();
-      
-      // Create: Only authenticated users with valid data
-      allow create: if isAuthenticated();
-      
-      // Update: Only authenticated users
-      allow update: if isAuthenticated();
-      
-      // Delete: Only authenticated users 
+
+      // Create: Only authenticated users with valid, whitelisted data
+      allow create: if isAuthenticated()
+                   && hasOnlyAllowedStaffFields(request.resource.data)
+                   && isValidStaff(request.resource.data);
+
+      // Update: Only authenticated users changing whitelisted fields with valid data
+      allow update: if isAuthenticated()
+                   && hasOnlyAllowedStaffUpdateFields()
+                   && isValidStaff(request.resource.data);
+
+      // Delete: Only authenticated users
       allow delete: if isAuthenticated();
     }
     

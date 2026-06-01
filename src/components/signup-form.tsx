@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner"
 import { Laptop, UserPlus, Loader2 } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
+import { secureLog } from "@/lib/security"
 interface SignupFormProps {
   onBackToLogin?: () => void
 }
@@ -77,17 +78,18 @@ export function SignupForm({ onBackToLogin }: SignupFormProps) {
           window.location.href = "/"
         }
       }, 1500)
-    } catch (error: any) {
-      console.error("Signup error:", error)
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code
+      secureLog("error", "Signup error", { code })
       let msg = "Failed to create account"
-      if (error.code === 'auth/email-already-in-use') {
+      if (code === 'auth/email-already-in-use') {
         msg = "Email is already registered"
-      } else if (error.code === 'auth/weak-password') {
+      } else if (code === 'auth/weak-password') {
         msg = "Password is too weak"
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (code === 'auth/invalid-email') {
         msg = "Invalid email address"
       }
-      
+
       toast.error(msg)
     } finally {
       setLoading(false)
