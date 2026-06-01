@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { User2, Shield, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { secureLog } from "@/lib/security"
 
 export function ProfilePage() {
   const { user, userRole } = useAuth()
@@ -32,13 +33,13 @@ export function ProfilePage() {
       } else {
         // Initialize settings document if it doesn't exist
         setDoc(doc(db, "settings", "signup"), { enabled: false }).catch((error) => {
-          console.error("Error initializing settings:", error)
+          secureLog("error", "Error initializing settings", { error: String(error) })
         })
         setSignupEnabled(false)
       }
       setLoading(false)
     }, (error) => {
-      console.error("Error listening to signup state:", error)
+      secureLog("error", "Error listening to signup state", { error: String(error) })
       toast.error("Failed to load settings")
       setLoading(false)
     })
@@ -58,7 +59,7 @@ export function ProfilePage() {
       setSignupEnabled(enabled)
       toast.success(enabled ? "Signup enabled" : "Signup disabled")
     } catch (error) {
-      console.error("Error updating signup state:", error)
+      secureLog("error", "Error updating signup state", { error: String(error) })
       toast.error("Failed to update settings")
     } finally {
       setSaving(false)
@@ -74,9 +75,9 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto p-6 space-y-6">
+    <div className="container max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile</h1>
         <p className="text-muted-foreground mt-2">Manage your account settings</p>
       </div>
 
@@ -134,8 +135,8 @@ export function ProfilePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5 min-w-0">
                 <Label htmlFor="signup-toggle" className="text-sm font-medium">
                   Enable Sign Up
                 </Label>

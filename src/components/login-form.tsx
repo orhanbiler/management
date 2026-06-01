@@ -92,7 +92,7 @@ export function LoginForm() {
         setSignupEnabled(false)
       }
     }, (error) => {
-      console.error("Error listening to signup state:", error)
+      secureLog("error", "Error listening to signup state", { error: String(error) })
       setSignupEnabled(false)
     })
 
@@ -311,7 +311,7 @@ export function LoginForm() {
 
           {signupEnabled && (
             <div className="text-center text-sm text-muted-foreground mt-4">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/signup" className="text-primary hover:underline font-medium">
                 Sign up
               </Link>
