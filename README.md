@@ -38,10 +38,12 @@ A comprehensive inventory management system for tracking and managing devices (T
 - **Custom Formatting**: Includes memo headers (To, From, Date, Re) with proper formatting
 
 ### 🎨 UI/UX
-- **Modern Design**: Built with Shadcn UI components and Tailwind CSS
-- **Responsive Layout**: Works on desktop and mobile devices
+- **Unified Workspace**: Evergreen navigation, neutral surfaces, clear status badges, and consistent forms
+- **Focused Inventory**: Status tabs, labeled action menus, and 10/25/50-row pagination
+- **Fleet Insights**: Device mix, operating-system counts, and records needing attention
+- **Responsive Layout**: Desktop tables become readable cards on phones and narrow tablets
 - **Collapsible Sidebar**: Icon-only collapsed state with tooltips
-- **Loading States**: Spinner indicators on all action buttons
+- **Loading and Error States**: Loading placeholders, form progress, and visible data-load failures
 - **Toast Notifications**: User-friendly feedback for all operations
 - **Dark Mode Support**: Theme switching capability
 
@@ -125,7 +127,7 @@ management/
 
 ### Adding a Device
 
-1. Click the "Add New Device" button
+1. Click the "Add device" button
 2. Fill in the required fields:
    - Serial Number (auto-uppercased)
    - PID Number (auto-uppercased)
@@ -139,35 +141,35 @@ management/
 ### Generating CAPWIN Registration
 
 **Individual:**
-- Click the purple file icon next to any device
+- Open a device’s action menu (•••) and select "CAPWIN registration"
 - Review the generated email in the modal
 - Download PDF or open email client
 
 **Bulk:**
 - Select multiple devices using checkboxes
-- Click "Bulk CAPWIN" in the action bar
+- Click "CAPWIN email" in the selection bar
 - Generate PDF or email for all selected devices
 
 ### Generating Deactivation PDFs
 
 **Individual:**
-- Click the red X icon next to any device
+- Open a device’s action menu (•••) and select "Download deactivation PDF"
 - PDF downloads automatically
 
 **Bulk:**
 - Select multiple devices
-- Click "Bulk Deactivate PDF" in the action bar
+- Click "Deactivation PDF" in the selection bar
 - PDF downloads with all selected devices
 
 ### Notifying Officers
 
 **Individual:**
-- Click the green send icon next to an assigned device
+- Open an assigned device’s action menu (•••) and select "Notify officer"
 - Email modal opens with notification template
 
 **Bulk:**
 - Select multiple assigned devices
-- Click "Bulk Notify" in the action bar
+- Click "Notify officers" in the selection bar
 
 ## PDF Format
 
@@ -205,3 +207,7 @@ This project is private and proprietary.
 ## Contact
 
 For questions or support, please contact the development team.
+
+## Interface redesign
+
+See [the redesign notes](docs/ui-redesign.md) for navigation changes, retained workflows, and validation details.

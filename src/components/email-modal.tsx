@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -70,12 +71,13 @@ export function EmailModal({ open, onOpenChange, subject, body, warning, recipie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
             Generated Email Draft
           </DialogTitle>
+          <DialogDescription>Review your message before copying, downloading, or opening your email client.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -87,19 +89,19 @@ export function EmailModal({ open, onOpenChange, subject, body, warning, recipie
           )}
 
           <div className="space-y-2">
-            <Label>Subject</Label>
+            <Label htmlFor="email-subject">Subject</Label>
             <div className="flex gap-2">
-              <Input value={subject} readOnly />
-              <Button variant="outline" size="icon" onClick={() => copyToClipboard(subject, "Subject")}>
+              <Input id="email-subject" value={subject} readOnly />
+              <Button variant="outline" size="icon" aria-label="Copy email subject" onClick={() => copyToClipboard(subject, "Subject")}>
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Body Content</Label>
+            <Label htmlFor="email-body">Body content</Label>
             <div className="relative">
-              <Textarea value={body} readOnly className="min-h-[300px] font-mono text-sm p-4" />
+              <Textarea id="email-body" value={body} readOnly className="min-h-[300px] font-mono text-sm p-4 pt-12" />
               <Button 
                 variant="secondary" 
                 size="sm" 

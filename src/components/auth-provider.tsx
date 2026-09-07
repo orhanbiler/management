@@ -7,7 +7,6 @@ import { doc, getDoc, setDoc } from "firebase/firestore"
 import { Loader2 } from "lucide-react"
 import { 
   updateLastActivity, 
-  isSessionExpired, 
   clearSession,
   secureLog 
 } from "@/lib/security"
@@ -43,7 +42,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userRole, setUserRole] = useState<"user" | "admin" | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!!auth)
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
   const activityCheckRef = useRef<NodeJS.Timeout | null>(null)
   const warningShownRef = useRef(false)
@@ -140,10 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Auth state listener
   useEffect(() => {
-    if (!auth) {
-      setLoading(false)
-      return
-    }
+    if (!auth) return
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)

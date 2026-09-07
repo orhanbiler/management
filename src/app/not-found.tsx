@@ -5,12 +5,12 @@ import { Home, AlertCircle } from "lucide-react"
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 p-4">
-      <Card className="w-full max-w-md shadow-xl border-0">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md border shadow-none">
         <CardHeader className="space-y-1 text-center pb-8">
           <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center shadow-inner">
-              <AlertCircle className="h-8 w-8 text-destructive" />
+            <div className="h-14 w-14 bg-accent rounded-xl flex items-center justify-center shadow-inner">
+              <AlertCircle className="h-8 w-8 text-primary" />
             </div>
           </div>
           <CardTitle className="text-3xl font-bold tracking-tight">

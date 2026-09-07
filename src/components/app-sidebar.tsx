@@ -1,15 +1,16 @@
 "use client"
 
-import { useRouter, usePathname } from "next/navigation"
-import Image from "next/image"
-import { 
-  LayoutDashboard, 
-  Users, 
-  Settings, 
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import {
+  Monitor,
+  Users,
+  Settings2,
   LogOut,
-  FileText,
   ChevronUp,
-  User2
+  ArrowUpRight,
+  ShieldCheck,
+  Layers3
 } from "lucide-react"
 import {
   Sidebar,
@@ -22,14 +23,15 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
   SidebarRail,
+  useSidebar
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -37,113 +39,128 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSignOut?: () => void
 }
 
-export function AppSidebar({ userEmail, onSignOut, ...props }: AppSidebarProps) {
-  const router = useRouter()
+export function AppSidebar({
+  userEmail,
+  onSignOut,
+  ...props
+}: AppSidebarProps) {
   const pathname = usePathname()
+  const { setOpenMobile } = useSidebar()
+  const navigation = [
+    { href: "/", label: "Device inventory", icon: Monitor },
+    { href: "/staff", label: "Staff directory", icon: Users },
+    { href: "/profile", label: "Account & settings", icon: Settings2 }
+  ]
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="Device Manager" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-0">
-              <div className="flex aspect-square size-10 items-center justify-center rounded-lg shrink-0 overflow-hidden group-data-[collapsible=icon]:size-8">
-                <Image 
-                  src="/logo.png" 
-                  alt="Device Manager Logo" 
-                  width={40} 
-                  height={40}
-                  className="object-contain group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8"
-                />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-semibold">Device Manager</span>
-                <span className="truncate text-xs">Cheverly PD</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+    <Sidebar collapsible="icon" className="border-0" {...props}>
+      <SidebarHeader className="px-5 pt-7 pb-8 group-data-[collapsible=icon]:px-4">
+        <Link
+          href="/"
+          aria-label="Device Manager home"
+          onClick={() => setOpenMobile(false)}
+          className="flex items-center gap-3"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#efbc9e] text-[#20392f]">
+            <Layers3 className="size-5" strokeWidth={1.8} />
+          </span>
+          <div className="group-data-[collapsible=icon]:hidden">
+            <div className="text-sm font-semibold tracking-tight text-white">
+              Device Manager<span className="text-[#efbc9e]">.</span>
+            </div>
+            <div className="mt-0.5 text-[9px] tracking-wide text-sidebar-foreground/70">
+              CHEVERLY PD · MARYLAND
+            </div>
+          </div>
+        </Link>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarContent className="px-3">
+        <SidebarGroup className="p-0">
+          <SidebarGroupLabel className="mb-2 px-3 text-[9px] tracking-[0.16em] text-sidebar-foreground/60">
+            WORKSPACE
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  isActive={pathname === "/"} 
-                  onClick={() => router.push("/")}
-                  tooltip="Inventory"
-                >
-                  <LayoutDashboard />
-                  <span className="group-data-[collapsible=icon]:hidden">Inventory</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  isActive={pathname === "/staff"} 
-                  onClick={() => router.push("/staff")}
-                  tooltip="Staff"
-                >
-                  <Users />
-                  <span className="group-data-[collapsible=icon]:hidden">Staff</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Settings">
-                  <Settings />
-                  <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            <SidebarMenu className="gap-1.5">
+              {navigation.map(({ href, label, icon: Icon }) => (
+                <SidebarMenuItem key={href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === href}
+                    tooltip={label}
+                    className="h-11 gap-3 rounded-lg px-3 text-[12px] data-[active=true]:font-medium group-data-[collapsible=icon]:size-11!"
+                  >
+                    <Link
+                      href={href}
+                      aria-current={pathname === href ? "page" : undefined}
+                      onClick={() => setOpenMobile(false)}
+                    >
+                      <Icon className="size-4!" strokeWidth={1.7} />
+                      <span>{label}</span>
+                      {pathname === href && (
+                        <span className="ml-auto size-1.5 rounded-full bg-[#efbc9e] group-data-[collapsible=icon]:hidden" />
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarSeparator />
-        <SidebarGroup>
-          <SidebarGroupLabel>Analytics</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton disabled tooltip="Reports">
-                  <FileText />
-                  <span className="group-data-[collapsible=icon]:hidden">Reports (Soon)</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <div className="mt-auto mb-5 rounded-xl border border-sidebar-border bg-white/[0.025] p-4 group-data-[collapsible=icon]:hidden">
+          <ShieldCheck
+            className="mb-3 size-5 text-[#d7ba9f]"
+            strokeWidth={1.5}
+          />
+          <p className="text-xs font-medium text-white">
+            Ready for the next shift.
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-sidebar-foreground/80">
+            Keep your devices accounted for and your people connected.
+          </p>
+          <Link
+            href="/staff"
+            onClick={() => setOpenMobile(false)}
+            className="mt-4 inline-flex items-center gap-2 text-[11px] font-medium text-[#efbc9e]"
+          >
+            View staff directory <ArrowUpRight className="size-3" />
+          </Link>
+        </div>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="border-t border-sidebar-border p-3">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
-                  tooltip={userEmail?.split('@')[0] || "User"}
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0"
+                  tooltip="Your account"
+                  className="gap-3 group-data-[collapsible=icon]:size-11!"
                 >
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
-                     <User2 className="size-4" />
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#3b5148] text-[10px] font-semibold text-[#f0d4bc]">
+                    {userEmail?.slice(0, 2).toUpperCase() || "CP"}
+                  </span>
+                  <div className="grid min-w-0 flex-1 gap-1 text-left group-data-[collapsible=icon]:hidden">
+                    <span className="truncate text-xs font-medium text-white">
+                      {userEmail?.split("@")[0] || "Your account"}
+                    </span>
+                    <span className="truncate text-[10px] text-sidebar-foreground/70">
+                      {userEmail}
+                    </span>
                   </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                    <span className="truncate font-semibold">{userEmail?.split('@')[0]}</span>
-                    <span className="truncate text-xs">{userEmail}</span>
-                  </div>
-                  <ChevronUp className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+                  <ChevronUp className="size-3! group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                className="w-[--radix-popper-anchor-width]"
-              >
-                <DropdownMenuItem onClick={() => router.push("/profile")}>
-                  <User2 className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+              <DropdownMenuContent side="top" align="start" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">
+                    <Settings2 />
+                    Account & settings
+                  </Link>
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <LogOut />
+                  Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

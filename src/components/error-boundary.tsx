@@ -61,8 +61,8 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 p-4">
-          <Card className="w-full max-w-md shadow-xl border-0">
+        <div className="min-h-[60vh] flex items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md border shadow-none">
             <CardHeader className="space-y-1 text-center pb-6">
               <div className="flex justify-center mb-4">
                 <div className="h-16 w-16 bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center shadow-inner">
@@ -73,7 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Something went wrong
               </CardTitle>
               <CardDescription className="text-base">
-                An unexpected error has occurred. Our team has been notified.
+                We couldn’t load this part of the workspace. Please try again.
               </CardDescription>
               {this.state.errorId && (
                 <p className="text-xs text-muted-foreground mt-2 font-mono">

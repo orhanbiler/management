@@ -1,44 +1,33 @@
 "use client"
 
-import { useEffect, useState, Fragment } from "react"
-import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
+import { useEffect, useState } from "react"
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
   deleteDoc,
-  doc, 
-  query, 
+  doc,
+  query,
   orderBy,
   FirestoreError
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { 
-  StaffMember, 
-  StaffFormData, 
-  StaffStatus, 
+import {
+  StaffMember,
+  StaffFormData,
   StaffRank,
-  MetersCertStatus,
+  MetersCertStatus
 } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { StaffModal } from "@/components/staff-modal"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -47,17 +36,11 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
+  DialogTitle
 } from "@/components/ui/dialog"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { 
-  Search, 
-  Filter, 
-  Edit, 
+  Search,
+  Edit,
   Trash2,
   ArrowUpDown,
   ArrowUp,
@@ -71,27 +54,16 @@ import {
   Shield,
   AlertCircle,
   Award,
+  MoreHorizontal
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { 
-  getFirebaseErrorMessage, 
-  secureLog 
-} from "@/lib/security"
-
-// Status badge variants
-const statusVariants: Record<StaffStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  "Active": "default",
-  "On Leave": "secondary",
-  "Inactive": "outline",
-  "Terminated": "destructive",
-}
-
-const metersStatusVariants: Record<MetersCertStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  "Valid": "default",
-  "Expiring Soon": "secondary",
-  "Expired": "destructive",
-  "Not Certified": "outline",
-}
+import { getFirebaseErrorMessage, secureLog } from "@/lib/security"
 
 // Helper function to check if date is within 60 days (expiring soon for 2-year cert)
 function isExpiringSoon(dateStr?: string): boolean {
@@ -133,46 +105,48 @@ function formatDate(dateStr?: string): string {
   })
 }
 
-// Calculate expiration date (2 years from certification)
-function calculateExpirationDate(certDate: string): string {
-  const date = new Date(certDate)
-  date.setFullYear(date.getFullYear() + 2)
-  return date.toISOString().split("T")[0]
-}
-
 export function StaffDashboard() {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  
+  const [loadError, setLoadError] = useState("")
+
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("All")
   const [metersFilter, setMetersFilter] = useState<string>("All")
-  
+
   // Sorting State
-  const [sortBy, setSortBy] = useState<"last_name" | "badge_number" | "rank" | "status" | "meters_expiration_date">("last_name")
+  const [sortBy, setSortBy] = useState<
+    "last_name" | "badge_number" | "rank" | "status" | "meters_expiration_date"
+  >("last_name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   // Modal State
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
-  
+
   // Delete confirmation state
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null)
-  
+
   // Loading States
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set())
 
   // Calculate stats
   const stats = {
     total: staff.length,
-    active: staff.filter(s => s.status === "Active").length,
-    metersCertified: staff.filter(s => getMetersCertStatus(s) === "Valid").length,
-    metersExpiringSoon: staff.filter(s => getMetersCertStatus(s) === "Expiring Soon").length,
-    metersExpired: staff.filter(s => getMetersCertStatus(s) === "Expired").length,
-    metersNotCertified: staff.filter(s => getMetersCertStatus(s) === "Not Certified").length,
+    active: staff.filter((s) => s.status === "Active").length,
+    metersCertified: staff.filter((s) => getMetersCertStatus(s) === "Valid")
+      .length,
+    metersExpiringSoon: staff.filter(
+      (s) => getMetersCertStatus(s) === "Expiring Soon"
+    ).length,
+    metersExpired: staff.filter((s) => getMetersCertStatus(s) === "Expired")
+      .length,
+    metersNotCertified: staff.filter(
+      (s) => getMetersCertStatus(s) === "Not Certified"
+    ).length
   }
 
   // Data Fetching
@@ -180,36 +154,36 @@ export function StaffDashboard() {
     if (!db) {
       secureLog("warn", "No Firestore connection. Using mock data.")
       const mockData: StaffMember[] = [
-        { 
-          id: '1', 
-          first_name: 'John', 
-          last_name: 'Smith',
-          badge_number: '001',
-          employee_id: 'EMP001',
-          rank: 'Sergeant',
-          status: 'Active',
-          email: 'jsmith@cheverlypd.gov',
-          phone: '301-555-0101',
-          hire_date: '2015-03-15',
-          department: 'Patrol',
-          meters_certification_date: '2024-01-15',
-          meters_expiration_date: '2026-01-15',
-          notes: 'Field Training Officer'
+        {
+          id: "1",
+          first_name: "John",
+          last_name: "Smith",
+          badge_number: "001",
+          employee_id: "EMP001",
+          rank: "Sergeant",
+          status: "Active",
+          email: "jsmith@cheverlypd.gov",
+          phone: "301-555-0101",
+          hire_date: "2015-03-15",
+          department: "Patrol",
+          meters_certification_date: "2024-01-15",
+          meters_expiration_date: "2026-01-15",
+          notes: "Field Training Officer"
         },
-        { 
-          id: '2', 
-          first_name: 'Jane', 
-          last_name: 'Doe',
-          badge_number: '002',
-          employee_id: 'EMP002',
-          rank: 'Officer',
-          status: 'Active',
-          hire_date: '2020-06-01',
-          department: 'Patrol',
-          meters_certification_date: '2023-06-01',
-          meters_expiration_date: '2025-06-01',
-          notes: ''
-        },
+        {
+          id: "2",
+          first_name: "Jane",
+          last_name: "Doe",
+          badge_number: "002",
+          employee_id: "EMP002",
+          rank: "Officer",
+          status: "Active",
+          hire_date: "2020-06-01",
+          department: "Patrol",
+          meters_certification_date: "2023-06-01",
+          meters_expiration_date: "2025-06-01",
+          notes: ""
+        }
       ]
       setStaff(mockData)
       setIsLoading(false)
@@ -217,24 +191,35 @@ export function StaffDashboard() {
     }
 
     const q = query(collection(db, "staff"), orderBy("last_name"))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as StaffMember[]
-      setStaff(data)
-      setIsLoading(false)
-    }, (error: FirestoreError) => {
-      secureLog("error", "Error fetching staff data", { code: error.code, message: error.message })
-      setIsLoading(false)
-      
-      if (error.code === "permission-denied") {
-        toast.error("Permission denied. Deploy Firestore rules with staff collection access.")
-      } else {
-        const errorMessage = getFirebaseErrorMessage(error)
-        toast.error(errorMessage)
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        })) as StaffMember[]
+        setStaff(data)
+        setLoadError("")
+        setIsLoading(false)
+      },
+      (error: FirestoreError) => {
+        secureLog("error", "Error fetching staff data", {
+          code: error.code,
+          message: error.message
+        })
+        setIsLoading(false)
+
+        setLoadError(getFirebaseErrorMessage(error))
+        if (error.code === "permission-denied") {
+          toast.error(
+            "Permission denied. Deploy Firestore rules with staff collection access."
+          )
+        } else {
+          const errorMessage = getFirebaseErrorMessage(error)
+          toast.error(errorMessage)
+        }
       }
-    })
+    )
 
     return () => unsubscribe()
   }, [])
@@ -245,26 +230,39 @@ export function StaffDashboard() {
 
     if (searchQuery) {
       const q = searchQuery.toUpperCase()
-      result = result.filter(item => 
-        item.first_name.toUpperCase().includes(q) ||
-        item.last_name.toUpperCase().includes(q) ||
-        item.badge_number.includes(q) ||
-        item.employee_id.toUpperCase().includes(q) ||
-        (item.email && item.email.toUpperCase().includes(q))
+      result = result.filter(
+        (item) =>
+          item.first_name.toUpperCase().includes(q) ||
+          item.last_name.toUpperCase().includes(q) ||
+          item.badge_number.includes(q) ||
+          item.employee_id.toUpperCase().includes(q) ||
+          (item.email && item.email.toUpperCase().includes(q))
       )
     }
 
     if (statusFilter !== "All") {
-      result = result.filter(item => item.status === statusFilter)
+      result = result.filter((item) => item.status === statusFilter)
     }
 
     if (metersFilter !== "All") {
-      result = result.filter(item => getMetersCertStatus(item) === metersFilter)
+      result = result.filter(
+        (item) => getMetersCertStatus(item) === metersFilter
+      )
     }
 
     // Sorting
-    const rankOrder: StaffRank[] = ["Chief", "Captain", "Lieutenant", "Sergeant", "Corporal", "Detective", "Officer", "Civilian", "Other"]
-    
+    const rankOrder: StaffRank[] = [
+      "Chief",
+      "Captain",
+      "Lieutenant",
+      "Sergeant",
+      "Corporal",
+      "Detective",
+      "Officer",
+      "Civilian",
+      "Other"
+    ]
+
     result = [...result].sort((a, b) => {
       let aValue: string | number = ""
       let bValue: string | number = ""
@@ -287,15 +285,23 @@ export function StaffDashboard() {
           bValue = b.status
           break
         case "meters_expiration_date":
-          aValue = a.meters_expiration_date ? new Date(a.meters_expiration_date).getTime() : 0
-          bValue = b.meters_expiration_date ? new Date(b.meters_expiration_date).getTime() : 0
+          aValue = a.meters_expiration_date
+            ? new Date(a.meters_expiration_date).getTime()
+            : 0
+          bValue = b.meters_expiration_date
+            ? new Date(b.meters_expiration_date).getTime()
+            : 0
           break
       }
 
       if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortOrder === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+        return sortOrder === "asc"
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue)
       }
-      return sortOrder === "asc" ? (aValue as number) - (bValue as number) : (bValue as number) - (aValue as number)
+      return sortOrder === "asc"
+        ? (aValue as number) - (bValue as number)
+        : (bValue as number) - (aValue as number)
     })
 
     setFilteredStaff(result)
@@ -312,10 +318,13 @@ export function StaffDashboard() {
   }
 
   const getSortIcon = (field: typeof sortBy) => {
-    if (sortBy !== field) return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />
-    return sortOrder === "asc" 
-      ? <ArrowUp className="h-4 w-4 ml-1" /> 
-      : <ArrowDown className="h-4 w-4 ml-1" />
+    if (sortBy !== field)
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />
+    return sortOrder === "asc" ? (
+      <ArrowUp className="h-4 w-4 ml-1" />
+    ) : (
+      <ArrowDown className="h-4 w-4 ml-1" />
+    )
   }
 
   // CRUD Operations
@@ -326,7 +335,7 @@ export function StaffDashboard() {
     }
 
     const actionId = editingStaff ? `update-${editingStaff.id}` : "create"
-    setLoadingActions(prev => new Set(prev).add(actionId))
+    setLoadingActions((prev) => new Set(prev).add(actionId))
 
     try {
       if (editingStaff) {
@@ -346,20 +355,24 @@ export function StaffDashboard() {
       setEditingStaff(null)
     } catch (error: unknown) {
       const firebaseError = error as { code?: string; message?: string }
-      secureLog("error", "Error saving staff", { 
-        code: firebaseError?.code, 
-        message: firebaseError?.message 
+      secureLog("error", "Error saving staff", {
+        code: firebaseError?.code,
+        message: firebaseError?.message
       })
-      
+
       // Show specific error message
       if (firebaseError?.code === "permission-denied") {
-        toast.error("Permission denied. Please check Firestore rules are deployed.")
+        toast.error(
+          "Permission denied. Please check Firestore rules are deployed."
+        )
       } else {
-        toast.error(`Failed to save: ${firebaseError?.message || "Unknown error"}`)
+        toast.error(
+          `Failed to save: ${firebaseError?.message || "Unknown error"}`
+        )
       }
       throw error
     } finally {
-      setLoadingActions(prev => {
+      setLoadingActions((prev) => {
         const next = new Set(prev)
         next.delete(actionId)
         return next
@@ -370,7 +383,7 @@ export function StaffDashboard() {
   const handleDeleteStaff = async () => {
     if (!db || !staffToDelete) return
 
-    setLoadingActions(prev => new Set(prev).add(`delete-${staffToDelete.id}`))
+    setLoadingActions((prev) => new Set(prev).add(`delete-${staffToDelete.id}`))
 
     try {
       await deleteDoc(doc(db, "staff", staffToDelete.id))
@@ -381,7 +394,7 @@ export function StaffDashboard() {
       secureLog("error", "Error deleting staff", { error })
       toast.error("Failed to delete staff record")
     } finally {
-      setLoadingActions(prev => {
+      setLoadingActions((prev) => {
         const next = new Set(prev)
         next.delete(`delete-${staffToDelete.id}`)
         return next
@@ -398,7 +411,7 @@ export function StaffDashboard() {
           <Skeleton className="h-10 w-[120px]" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-[100px]" />
           ))}
         </div>
@@ -408,377 +421,361 @@ export function StaffDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 animate-fade-in">
+      <div className="page-heading">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
-          <p className="text-muted-foreground mt-1">METERS certification tracking</p>
+          <p className="eyebrow">People & readiness</p>
+          <h1 className="page-title">Staff directory</h1>
+          <p className="page-description">
+            Keep your team organized and certifications up to date.
+          </p>
         </div>
-        <Button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true) }}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Staff
+        <Button
+          onClick={() => {
+            setEditingStaff(null)
+            setIsStaffModalOpen(true)
+          }}
+        >
+          <UserPlus />
+          Add staff
         </Button>
       </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Total Staff</p>
-              </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {[
+          { label: "Total staff", value: stats.total, icon: Users },
+          { label: "Active", value: stats.active, icon: Shield },
+          {
+            label: "METERS valid",
+            value: stats.metersCertified,
+            icon: CheckCircle2
+          },
+          {
+            label: "Expiring soon",
+            value: stats.metersExpiringSoon,
+            icon: Clock
+          },
+          { label: "Expired", value: stats.metersExpired, icon: XCircle },
+          {
+            label: "Not certified",
+            value: stats.metersNotCertified,
+            icon: AlertCircle
+          }
+        ].map(({ label, value, icon: Icon }) => (
+          <div className="metric-card" key={label}>
+            <div className="metric-top">
+              <span>{label}</span>
+              <Icon className="size-3.5 shrink-0" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Shield className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.active}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
-              </div>
+            <div className="metric-value">
+              {value.toString().padStart(2, "0")}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.metersCertified}</p>
-                <p className="text-xs text-muted-foreground">METERS Valid</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 rounded-lg">
-                <Clock className="h-5 w-5 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.metersExpiringSoon}</p>
-                <p className="text-xs text-muted-foreground">Expiring Soon</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-500/10 rounded-lg">
-                <XCircle className="h-5 w-5 text-red-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.metersExpired}</p>
-                <p className="text-xs text-muted-foreground">Expired</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-500/10 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-gray-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.metersNotCertified}</p>
-                <p className="text-xs text-muted-foreground">Not Certified</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, badge, employee ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[150px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Status</SelectItem>
-                <SelectItem value="Active">Active</SelectItem>
-                <SelectItem value="On Leave">On Leave</SelectItem>
-                <SelectItem value="Inactive">Inactive</SelectItem>
-                <SelectItem value="Terminated">Terminated</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={metersFilter} onValueChange={setMetersFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Award className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="METERS" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All METERS Status</SelectItem>
-                <SelectItem value="Valid">Valid</SelectItem>
-                <SelectItem value="Expiring Soon">Expiring Soon</SelectItem>
-                <SelectItem value="Expired">Expired</SelectItem>
-                <SelectItem value="Not Certified">Not Certified</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Mobile / tablet card list */}
-      <div className="lg:hidden space-y-3">
-        {filteredStaff.length === 0 ? (
-          <Card>
-            <CardContent className="p-8">
-              <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground text-center">
-                <Users className="h-10 w-10" />
-                <p className="text-base font-medium">No staff members found</p>
-                <p className="text-sm">Add your first staff member to get started</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredStaff.map((member) => {
-            const metersStatus = getMetersCertStatus(member)
-            return (
-              <Card key={member.id} className="overflow-hidden">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">{member.last_name}, {member.first_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {member.rank}{member.department ? ` · ${member.department}` : ""}
-                      </p>
-                    </div>
-                    <Badge variant={statusVariants[member.status]} className="flex-shrink-0">
-                      {member.status}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Badge</p>
-                      <p className="font-mono">{member.badge_number || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">METERS</p>
-                      <Badge variant={metersStatusVariants[metersStatus]} className="mt-0.5">{metersStatus}</Badge>
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Certified</p>
-                      <p className="text-xs">{formatDate(member.meters_certification_date)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Expires</p>
-                      <p className={`text-xs ${
-                        metersStatus === "Expired" ? "text-red-500 font-medium" :
-                        metersStatus === "Expiring Soon" ? "text-amber-500 font-medium" : ""
-                      }`}>
-                        {formatDate(member.meters_expiration_date)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 h-10"
-                      onClick={() => { setEditingStaff(member); setIsStaffModalOpen(true) }}
-                    >
-                      <Edit className="h-4 w-4 mr-1.5" /> Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-10 w-10 flex-shrink-0 text-red-500 hover:text-red-600"
-                      onClick={() => { setStaffToDelete(member); setDeleteConfirmOpen(true) }}
-                      aria-label="Delete staff"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+        ))}
+      </div>
+      <section className="surface" aria-label="Staff records">
+        <div className="flex items-center gap-2 px-5 pt-5">
+          <h2 className="section-title">Your people</h2>
+          <span className="tab-count">{staff.length}</span>
+        </div>
+        <div className="filter-tabs" aria-label="Filter staff by status">
+          {["All", "Active", "On Leave", "Inactive", "Terminated"].map(
+            (status) => (
+              <button
+                key={status}
+                className="filter-tab"
+                aria-pressed={statusFilter === status}
+                onClick={() => setStatusFilter(status)}
+              >
+                {status === "All" ? "All staff" : status}
+              </button>
             )
-          })
-        )}
-      </div>
-
-      {/* Staff Table (desktop / large screens) */}
-      <Card className="hidden lg:block">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      className="p-0 h-auto font-semibold hover:bg-transparent"
-                      onClick={() => toggleSort("last_name")}
-                    >
-                      Name {getSortIcon("last_name")}
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      className="p-0 h-auto font-semibold hover:bg-transparent"
-                      onClick={() => toggleSort("badge_number")}
-                    >
-                      Badge {getSortIcon("badge_number")}
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      className="p-0 h-auto font-semibold hover:bg-transparent"
-                      onClick={() => toggleSort("rank")}
-                    >
-                      Rank {getSortIcon("rank")}
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      className="p-0 h-auto font-semibold hover:bg-transparent"
-                      onClick={() => toggleSort("status")}
-                    >
-                      Status {getSortIcon("status")}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-center">METERS Status</TableHead>
-                  <TableHead>Certified</TableHead>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      className="p-0 h-auto font-semibold hover:bg-transparent"
-                      onClick={() => toggleSort("meters_expiration_date")}
-                    >
-                      Expires {getSortIcon("meters_expiration_date")}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStaff.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-[200px] text-center">
-                      <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                        <Users className="h-10 w-10" />
-                        <p className="text-lg font-medium">No staff members found</p>
-                        <p className="text-sm">Add your first staff member to get started</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredStaff.map((member) => {
-                    const metersStatus = getMetersCertStatus(member)
-                    
-                    return (
-                      <TableRow key={member.id}>
-                        <TableCell className="font-medium">
-                          <div>
-                            {member.last_name}, {member.first_name}
-                            {member.department && (
-                              <p className="text-xs text-muted-foreground">{member.department}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono">{member.badge_number}</TableCell>
-                        <TableCell>{member.rank}</TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariants[member.status]}>
-                            {member.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={metersStatusVariants[metersStatus]}>
-                            {metersStatus}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatDate(member.meters_certification_date)}</TableCell>
-                        <TableCell>
-                          <span className={
-                            metersStatus === "Expired" ? "text-red-500 font-medium" : 
-                            metersStatus === "Expiring Soon" ? "text-amber-500 font-medium" : ""
-                          }>
-                            {formatDate(member.meters_expiration_date)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => {
-                                    setEditingStaff(member)
-                                    setIsStaffModalOpen(true)
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Edit Staff</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="text-red-500 hover:text-red-600"
-                                  onClick={() => {
-                                    setStaffToDelete(member)
-                                    setDeleteConfirmOpen(true)
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete Staff</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
+          )}
+        </div>
+        <div className="table-toolbar">
+          <div className="search-field">
+            <Search />
+            <Input
+              className="h-10 pl-9 text-sm"
+              aria-label="Search staff"
+              placeholder="Search name, badge, or employee ID…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        </CardContent>
-      </Card>
-
+          <div className="flex flex-wrap gap-2">
+            <Select value={metersFilter} onValueChange={setMetersFilter}>
+              <SelectTrigger
+                aria-label="Filter by METERS certification"
+                className="h-10! w-[186px] text-xs"
+              >
+                <Award className="size-3.5" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All METERS statuses</SelectItem>
+                {["Valid", "Expiring Soon", "Expired", "Not Certified"].map(
+                  (status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+            {(searchQuery ||
+              statusFilter !== "All" ||
+              metersFilter !== "All") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("")
+                  setStatusFilter("All")
+                  setMetersFilter("All")
+                }}
+              >
+                Reset
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end border-b px-4 py-2 lg:hidden">
+          <Select
+            value={sortBy}
+            onValueChange={(value) => toggleSort(value as typeof sortBy)}
+          >
+            <SelectTrigger
+              aria-label="Sort staff"
+              className="w-[190px] text-xs"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="last_name">Name</SelectItem>
+              <SelectItem value="badge_number">Badge</SelectItem>
+              <SelectItem value="rank">Rank</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+              <SelectItem value="meters_expiration_date">
+                Certification expiry
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={
+              sortOrder === "asc" ? "Sort descending" : "Sort ascending"
+            }
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+          >
+            {sortOrder === "asc" ? <ArrowUp /> : <ArrowDown />}
+          </Button>
+        </div>
+        {loadError && (
+          <div
+            role="alert"
+            className="border-b bg-destructive/5 p-4 text-sm text-destructive"
+          >
+            {loadError}
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="inventory-table">
+            <caption className="sr-only">
+              Staff directory and METERS certifications
+            </caption>
+            <thead>
+              <tr>
+                {(
+                  [
+                    ["last_name", "Staff member"],
+                    ["badge_number", "Badge / ID"],
+                    ["rank", "Rank"],
+                    ["status", "Status"]
+                  ] as const
+                ).map(([field, label]) => (
+                  <th
+                    key={field}
+                    aria-sort={
+                      sortBy === field
+                        ? sortOrder === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                  >
+                    <button
+                      className="sort-button"
+                      onClick={() => toggleSort(field)}
+                    >
+                      {label}
+                      {getSortIcon(field)}
+                    </button>
+                  </th>
+                ))}
+                <th
+                  aria-sort={
+                    sortBy === "meters_expiration_date"
+                      ? sortOrder === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                >
+                  <button
+                    className="sort-button"
+                    onClick={() => toggleSort("meters_expiration_date")}
+                  >
+                    METERS certification{getSortIcon("meters_expiration_date")}
+                  </button>
+                </th>
+                <th>
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStaff.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="cell-empty">
+                    <div className="empty-state">
+                      <Users className="size-8 text-muted-foreground/50" />
+                      <h3 className="text-sm font-semibold">
+                        {loadError
+                          ? "Staff directory unavailable"
+                          : "No staff members to show"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {loadError
+                          ? "Refresh the page to try again."
+                          : "Try adjusting your filters or add a staff member to get started."}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredStaff.map((member) => {
+                  const metersStatus = getMetersCertStatus(member)
+                  return (
+                    <tr key={member.id}>
+                      <td className="cell-device">
+                        <button
+                          className="flex items-center gap-3 text-left"
+                          onClick={() => {
+                            setEditingStaff(member)
+                            setIsStaffModalOpen(true)
+                          }}
+                        >
+                          <span className="avatar size-9!">
+                            {member.first_name[0]}
+                            {member.last_name[0]}
+                          </span>
+                          <span>
+                            <span className="font-semibold">
+                              {member.first_name} {member.last_name}
+                            </span>
+                            <span className="mt-1 block text-[10px] text-muted-foreground">
+                              {member.department || "Department not recorded"}
+                            </span>
+                          </span>
+                        </button>
+                      </td>
+                      <td
+                        className="cell-detail"
+                        data-label="Badge / employee ID"
+                      >
+                        <span className="font-mono text-[11px]">
+                          #{member.badge_number}
+                        </span>
+                        <span className="mt-1 block text-[10px] text-muted-foreground">
+                          {member.employee_id}
+                        </span>
+                      </td>
+                      <td className="cell-status" data-label="Rank">
+                        {member.rank}
+                      </td>
+                      <td className="cell-detail" data-label="Employment">
+                        <span
+                          className={`status-pill status-${member.status.toLowerCase().replaceAll(" ", "-")}`}
+                        >
+                          {member.status}
+                        </span>
+                      </td>
+                      <td
+                        className="cell-status"
+                        data-label="METERS certification"
+                      >
+                        <span
+                          className={`status-pill status-${metersStatus.toLowerCase().replaceAll(" ", "-")}`}
+                        >
+                          {metersStatus}
+                        </span>
+                        <p className="mt-1.5 text-[10px] text-muted-foreground">
+                          Expires {formatDate(member.meters_expiration_date)}
+                        </p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          Certified{" "}
+                          {formatDate(member.meters_certification_date)}
+                        </p>
+                      </td>
+                      <td className="cell-actions">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Actions for ${member.first_name} ${member.last_name}`}
+                            >
+                              <MoreHorizontal />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditingStaff(member)
+                                setIsStaffModalOpen(true)
+                              }}
+                            >
+                              <Edit />
+                              Edit staff member
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                setStaffToDelete(member)
+                                setDeleteConfirmOpen(true)
+                              }}
+                            >
+                              <Trash2 />
+                              Delete staff member
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="table-footer">
+          <span aria-live="polite">
+            Showing {filteredStaff.length} of {staff.length} staff members
+          </span>
+          <span>METERS renewal every 2 years</span>
+        </div>
+      </section>
+      <div className="flex items-start gap-3 rounded-xl border border-dashed p-4 text-xs leading-relaxed text-muted-foreground">
+        <Shield className="mt-0.5 size-4 shrink-0" />
+        <p>
+          <span className="font-medium text-foreground">
+            Stay ahead of renewals.
+          </span>{" "}
+          Certifications are marked as expiring soon within 60 days of their
+          expiration date.
+        </p>
+      </div>
       {/* Modals */}
       <StaffModal
         open={isStaffModalOpen}
@@ -793,16 +790,20 @@ export function StaffDashboard() {
           <DialogHeader>
             <DialogTitle>Delete Staff Record</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {staffToDelete?.first_name} {staffToDelete?.last_name}&apos;s record? 
-              This action cannot be undone.
+              Are you sure you want to delete {staffToDelete?.first_name}{" "}
+              {staffToDelete?.last_name}&apos;s record? This action cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handleDeleteStaff}
               disabled={loadingActions.has(`delete-${staffToDelete?.id}`)}
             >

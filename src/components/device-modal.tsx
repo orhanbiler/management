@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -320,15 +321,16 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{device ? "Edit Device" : "Add New Device"}</DialogTitle>
+          <DialogDescription>Keep device details, assignment, and registration information up to date.</DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Serial Number */}
               <FormField
                 control={form.control}
@@ -371,7 +373,7 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
               </FormItem>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* PID Number */}
               <FormField
                 control={form.control}
@@ -424,7 +426,7 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Device Type */}
               <FormField
                 control={form.control}
@@ -501,7 +503,7 @@ export function DeviceModal({ open, onOpenChange, device, onSave, existingDevice
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* To Be Retired Switch */}
               <FormField
                 control={form.control}

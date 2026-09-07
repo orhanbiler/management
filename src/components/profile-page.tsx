@@ -4,10 +4,15 @@ import { useState, useEffect } from "react"
 import { db } from "@/lib/firebase"
 import { doc, setDoc, onSnapshot } from "firebase/firestore"
 import { useAuth } from "@/components/auth-provider"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { User2, Shield, Loader2 } from "lucide-react"
@@ -27,22 +32,32 @@ export function ProfilePage() {
     }
 
     // Listen to signup enabled state in real-time
-    const unsubscribe = onSnapshot(doc(db, "settings", "signup"), (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        setSignupEnabled(docSnapshot.data().enabled || false)
-      } else {
-        // Initialize settings document if it doesn't exist
-        setDoc(doc(db, "settings", "signup"), { enabled: false }).catch((error) => {
-          secureLog("error", "Error initializing settings", { error: String(error) })
+    const unsubscribe = onSnapshot(
+      doc(db, "settings", "signup"),
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          setSignupEnabled(docSnapshot.data().enabled || false)
+        } else {
+          // Initialize settings document if it doesn't exist
+          setDoc(doc(db, "settings", "signup"), { enabled: false }).catch(
+            (error) => {
+              secureLog("error", "Error initializing settings", {
+                error: String(error)
+              })
+            }
+          )
+          setSignupEnabled(false)
+        }
+        setLoading(false)
+      },
+      (error) => {
+        secureLog("error", "Error listening to signup state", {
+          error: String(error)
         })
-        setSignupEnabled(false)
+        toast.error("Failed to load settings")
+        setLoading(false)
       }
-      setLoading(false)
-    }, (error) => {
-      secureLog("error", "Error listening to signup state", { error: String(error) })
-      toast.error("Failed to load settings")
-      setLoading(false)
-    })
+    )
 
     return () => unsubscribe()
   }, [])
@@ -59,7 +74,9 @@ export function ProfilePage() {
       setSignupEnabled(enabled)
       toast.success(enabled ? "Signup enabled" : "Signup disabled")
     } catch (error) {
-      secureLog("error", "Error updating signup state", { error: String(error) })
+      secureLog("error", "Error updating signup state", {
+        error: String(error)
+      })
       toast.error("Failed to update settings")
     } finally {
       setSaving(false)
@@ -75,20 +92,23 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-4xl space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile</h1>
-        <p className="text-muted-foreground mt-2">Manage your account settings</p>
+        <p className="eyebrow">Your workspace</p>
+        <h1 className="page-title">Account & settings</h1>
+        <p className="page-description">
+          Your details and department preferences, in one place.
+        </p>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+            <div className="h-11 w-11 bg-accent rounded-xl flex items-center justify-center">
               <User2 className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <CardTitle>Account Information</CardTitle>
+              <CardTitle>Account information</CardTitle>
               <CardDescription>Your account details</CardDescription>
             </div>
           </div>
@@ -97,7 +117,9 @@ export function ProfilePage() {
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-sm font-medium">Email</Label>
-              <p className="text-sm text-muted-foreground mt-1">{user?.email}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {user?.email}
+              </p>
             </div>
           </div>
           <Separator />
@@ -125,12 +147,14 @@ export function ProfilePage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+              <div className="h-11 w-11 bg-accent rounded-xl flex items-center justify-center">
                 <Shield className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <CardTitle>Admin Settings</CardTitle>
-                <CardDescription>Manage system settings</CardDescription>
+                <CardTitle>Department settings</CardTitle>
+                <CardDescription>
+                  Control access to your department workspace
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -138,7 +162,7 @@ export function ProfilePage() {
             <div className="flex items-center justify-between gap-4">
               <div className="space-y-0.5 min-w-0">
                 <Label htmlFor="signup-toggle" className="text-sm font-medium">
-                  Enable Sign Up
+                  Allow new accounts
                 </Label>
                 <p className="text-sm text-muted-foreground">
                   Allow new users to create accounts
@@ -163,4 +187,3 @@ export function ProfilePage() {
     </div>
   )
 }
-

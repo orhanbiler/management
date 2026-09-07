@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -176,12 +177,13 @@ export function PidComparisonModal({ open, onOpenChange, inventory, onAddDevices
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSearch className="h-5 w-5" />
             PID Comparison Tool
           </DialogTitle>
+          <DialogDescription>Compare a PID list with your current device inventory.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -194,8 +196,9 @@ export function PidComparisonModal({ open, onOpenChange, inventory, onAddDevices
           </Alert>
 
           <div className="space-y-2">
-            <Label>PID Numbers List</Label>
+            <Label htmlFor="pid-comparison-list">PID numbers</Label>
             <Textarea
+              id="pid-comparison-list"
               placeholder="Paste PID numbers here...&#10;Example:&#10;Z100A13927&#10;Z100B12345&#10;Z100C67890"
               value={pidList}
               onChange={(e) => setPidList(e.target.value)}

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { AuthLayout } from "@/components/auth-layout"
 import { SignupForm } from "@/components/signup-form"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
 import { db } from "@/lib/firebase"
-import { doc, getDoc, onSnapshot } from "firebase/firestore"
+import { doc, onSnapshot } from "firebase/firestore"
 import { Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -16,7 +17,7 @@ function SignupPageContent() {
   const router = useRouter()
   const { user } = useAuth()
   const [signupEnabled, setSignupEnabled] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!!db)
 
   useEffect(() => {
     // If user is already logged in, redirect to home
@@ -25,31 +26,32 @@ function SignupPageContent() {
       return
     }
 
-    if (!db) {
-      setLoading(false)
-      return
-    }
+    if (!db) return
 
     // Listen to signup enabled state
-    const unsubscribe = onSnapshot(doc(db, "settings", "signup"), (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        setSignupEnabled(docSnapshot.data().enabled || false)
-      } else {
-        // Initialize settings document if it doesn't exist
-        setSignupEnabled(false)
+    const unsubscribe = onSnapshot(
+      doc(db, "settings", "signup"),
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          setSignupEnabled(docSnapshot.data().enabled || false)
+        } else {
+          // Initialize settings document if it doesn't exist
+          setSignupEnabled(false)
+        }
+        setLoading(false)
+      },
+      (error) => {
+        console.error("Error listening to signup state:", error)
+        setLoading(false)
       }
-      setLoading(false)
-    }, (error) => {
-      console.error("Error listening to signup state:", error)
-      setLoading(false)
-    })
+    )
 
     return () => unsubscribe()
   }, [user, router])
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800">
+      <div className="min-h-svh flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -57,12 +59,16 @@ function SignupPageContent() {
 
   if (!signupEnabled) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 p-4">
+      <AuthLayout>
         <div className="w-full max-w-md">
-          <Alert variant="destructive">
+          <h2 className="mb-3 text-3xl font-semibold tracking-tight">
+            Account access
+          </h2>
+          <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Sign up is currently disabled. Please contact an administrator to enable account creation.
+              Sign up is currently disabled. Please contact an administrator to
+              enable account creation.
             </AlertDescription>
           </Alert>
           <div className="mt-4">
@@ -74,7 +80,7 @@ function SignupPageContent() {
             </Link>
           </div>
         </div>
-      </div>
+      </AuthLayout>
     )
   }
 
@@ -88,12 +94,3 @@ export default function SignupPage() {
     </AuthProvider>
   )
 }
-
-
-
-
-
-
-
-
-

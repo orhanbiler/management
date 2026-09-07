@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -155,14 +156,15 @@ export function StaffModal({ open, onOpenChange, staff, onSave }: StaffModalProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{staff ? "Edit Staff Member" : "Add Staff Member"}</DialogTitle>
+          <DialogDescription>Manage staff details and METERS certification dates.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="first_name"
@@ -192,7 +194,7 @@ export function StaffModal({ open, onOpenChange, staff, onSave }: StaffModalProp
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="badge_number"
@@ -226,7 +228,7 @@ export function StaffModal({ open, onOpenChange, staff, onSave }: StaffModalProp
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="rank"
@@ -281,7 +283,7 @@ export function StaffModal({ open, onOpenChange, staff, onSave }: StaffModalProp
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -311,7 +313,7 @@ export function StaffModal({ open, onOpenChange, staff, onSave }: StaffModalProp
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="hire_date"
@@ -350,7 +352,7 @@ export function StaffModal({ open, onOpenChange, staff, onSave }: StaffModalProp
                 <h3 className="font-semibold">METERS Certification</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="meters_certification_date"

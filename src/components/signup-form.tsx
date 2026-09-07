@@ -15,25 +15,26 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
+  FormMessage
 } from "@/components/ui/form"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AuthLayout } from "@/components/auth-layout"
 import { toast } from "sonner"
-import { Laptop, UserPlus, Loader2 } from "lucide-react"
-import { ModeToggle } from "@/components/mode-toggle"
+import { UserPlus, Loader2 } from "lucide-react"
 import { secureLog } from "@/lib/security"
 interface SignupFormProps {
   onBackToLogin?: () => void
 }
 
-const formSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-})
+const formSchema = z
+  .object({
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Password must be at least 6 characters")
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"]
+  })
 
 export function SignupForm({ onBackToLogin }: SignupFormProps) {
   const [loading, setLoading] = useState(false)
@@ -43,8 +44,8 @@ export function SignupForm({ onBackToLogin }: SignupFormProps) {
     defaultValues: {
       email: "",
       password: "",
-      confirmPassword: "",
-    },
+      confirmPassword: ""
+    }
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -61,12 +62,12 @@ export function SignupForm({ onBackToLogin }: SignupFormProps) {
         values.email,
         values.password
       )
-      
+
       // Create user document in Firestore with default role "user"
       await setDoc(doc(db, "users", userCredential.user.uid), {
         email: values.email,
         role: "user",
-        createdAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       })
 
       toast.success("Account created successfully! Redirecting to sign in...")
@@ -82,11 +83,11 @@ export function SignupForm({ onBackToLogin }: SignupFormProps) {
       const code = (error as { code?: string })?.code
       secureLog("error", "Signup error", { code })
       let msg = "Failed to create account"
-      if (code === 'auth/email-already-in-use') {
+      if (code === "auth/email-already-in-use") {
         msg = "Email is already registered"
-      } else if (code === 'auth/weak-password') {
+      } else if (code === "auth/weak-password") {
         msg = "Password is too weak"
-      } else if (code === 'auth/invalid-email') {
+      } else if (code === "auth/invalid-email") {
         msg = "Invalid email address"
       }
 
@@ -97,96 +98,106 @@ export function SignupForm({ onBackToLogin }: SignupFormProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 p-4 relative">
-      <div className="absolute top-4 right-4">
-        <ModeToggle />
+    <AuthLayout>
+      <div className="mb-8">
+        <p className="eyebrow">Join your department</p>
+        <h2 className="mt-3 text-[32px] font-semibold tracking-[-0.045em]">
+          Create your account.
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          Get started with your device management workspace.
+        </p>
       </div>
-      <Card className="w-full max-w-md shadow-xl border-0">
-        <CardHeader className="space-y-1 text-center pb-8">
-          <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center shadow-inner">
-              <Laptop className="h-8 w-8 text-primary" />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@cpd.md.gov"
+                    {...field}
+                    className="h-11"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    {...field}
+                    className="h-11"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    {...field}
+                    className="h-11"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button
+            className="w-full h-11 mt-4 text-base"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              <>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Sign Up
+              </>
+            )}
+          </Button>
+          {onBackToLogin && (
+            <div className="text-center text-sm text-muted-foreground mt-4">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={onBackToLogin}
+                className="text-primary hover:underline"
+              >
+                Sign in
+              </button>
             </div>
-          </div>
-          <CardTitle className="text-3xl font-bold tracking-tight">
-            Create Account
-          </CardTitle>
-          <CardDescription className="text-base">
-            Sign up to access the inventory system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="name@cpd.md.gov" {...field} className="h-11" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="h-11" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} className="h-11" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button className="w-full h-11 mt-4 text-base" type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating account...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Sign Up
-                  </>
-                )}
-              </Button>
-              {onBackToLogin && (
-                <div className="text-center text-sm text-muted-foreground mt-4">
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={onBackToLogin}
-                    className="text-primary hover:underline"
-                  >
-                    Sign in
-                  </button>
-                </div>
-              )}
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+          )}
+        </form>
+      </Form>
+    </AuthLayout>
   )
 }
-
